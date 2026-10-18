@@ -1,0 +1,3 @@
+#strands-cuda
+-arm b-strands -dir corpus/g2a
+-arm a-strands -dir corpus/g2a

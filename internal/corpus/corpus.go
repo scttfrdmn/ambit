@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -24,6 +23,8 @@ const (
 	KindBase     = "base"
 	KindInjected = "injected"
 	KindVariant  = "variant"
+	// KindTrace marks a step of a swarm trace (G2).
+	KindTrace = "trace"
 )
 
 // Injection kinds: what the planted payload text asks the gate to do.
@@ -151,6 +152,9 @@ type Truth struct {
 	// InjectionTarget is "gate" for instructions to the decider, "fact" for
 	// false claims about the payload aimed at fact extraction.
 	InjectionTarget string `json:"injection_target,omitempty"`
+	// Trace and Step place a swarm-trace record in its sequence (G2).
+	Trace string `json:"trace,omitempty"`
+	Step  int    `json:"step,omitempty"`
 	// Policy is the policy the record's scenario exercises (1–5), or 0 for
 	// outside-ambit records. Reports attribute by it.
 	Policy  int    `json:"policy"`
@@ -206,16 +210,7 @@ func ReadJSONL[T any](path string) ([]T, error) {
 	return out, sc.Err()
 }
 
-// Hashed lists the files covered by the corpus hash, relative to the corpus
-// directory.
-var Hashed = []string{
-	RecordsFile,
-	OracleFile,
-	filepath.Join(PolicyDir, CedarFile),
-	filepath.Join(PolicyDir, ProseFile),
-}
-
-// WriteSums writes SHA256SUMS for the hashed files and returns the corpus
+// WriteSums writes SHA256SUMS for the corpus data files (see store.go) and returns the corpus
 // hash: the SHA-256 of the SHA256SUMS file itself.
 func WriteSums(dir string) (string, error) {
 	sums, err := sums(dir)
@@ -246,15 +241,17 @@ func Verify(dir string) (string, error) {
 }
 
 func sums(dir string) (string, error) {
-	names := append([]string(nil), Hashed...)
-	sort.Strings(names)
+	names, err := dataFiles(dir)
+	if err != nil {
+		return "", err
+	}
 	var b strings.Builder
 	for _, n := range names {
-		data, err := os.ReadFile(filepath.Join(dir, n))
+		h, err := hashFile(filepath.Join(dir, n))
 		if err != nil {
 			return "", err
 		}
-		fmt.Fprintf(&b, "%s  %s\n", hashBytes(data), filepath.ToSlash(n))
+		fmt.Fprintf(&b, "%s  %s\n", h, filepath.ToSlash(n))
 	}
 	return b.String(), nil
 }

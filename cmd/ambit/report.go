@@ -6,44 +6,54 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
-	"github.com/scttfrdmn/ambit/internal/corpus"
 	"github.com/scttfrdmn/ambit/internal/report"
 )
 
-// cmdReport scores the latest complete run of each arm and writes
-// results/report.md and results/report.json.
+// cmdReport scores each arm's complete runs on one corpus and writes
+// report.md and report.json.
 func cmdReport(args []string) error {
 	fs := flag.NewFlagSet("report", flag.ExitOnError)
 	dir := fs.String("dir", "corpus", "corpus directory")
 	results := fs.String("results", "results", "results directory")
+	out := fs.String("out", "", "where to write report.md and report.json (default: the results directory)")
+	resamples := fs.Int("resamples", report.DefaultResamples, "bootstrap resamples per interval")
 	fs.Parse(args)
-	hash, err := corpus.Verify(*dir)
+	if *out == "" {
+		*out = *results
+	}
+	start := time.Now()
+	c, err := report.LoadCorpus(*dir)
 	if err != nil {
 		return err
 	}
-	truth, err := corpus.ReadJSONL[corpus.Truth](filepath.Join(*dir, corpus.OracleFile))
+	loaded, err := report.Load(*results, c)
 	if err != nil {
 		return err
 	}
-	runs, err := report.Load(*results, hash)
+	if len(loaded.Arms) == 0 {
+		return fmt.Errorf("no complete runs on corpus %.12s under %s", c.Hash, *results)
+	}
+	fmt.Fprintf(os.Stderr, "loaded %d records and %d arms in %s\n", c.Len(), len(loaded.Arms), time.Since(start).Round(time.Millisecond))
+	md, data, err := report.Build(c, loaded, report.Options{Resamples: *resamples})
 	if err != nil {
 		return err
 	}
-	if len(runs) == 0 {
-		return fmt.Errorf("no complete runs under %s", *results)
+	if err := os.MkdirAll(*out, 0o755); err != nil {
+		return err
 	}
-	md, data, err := report.Build(hash, truth, runs)
+	if err := os.WriteFile(filepath.Join(*out, "report.md"), []byte(md), 0o644); err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(*results, "report.md"), []byte(md), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(*out, "report.json"), append(b, '\n'), 0o644); err != nil {
 		return err
 	}
-	b, _ := json.MarshalIndent(data, "", "  ")
-	if err := os.WriteFile(filepath.Join(*results, "report.json"), append(b, '\n'), 0o644); err != nil {
-		return err
-	}
+	fmt.Fprintf(os.Stderr, "report in %s\n", time.Since(start).Round(time.Millisecond))
 	fmt.Print(md)
 	return nil
 }

@@ -1,9 +1,12 @@
 // Command ambit generates the corpus, runs arms over it, and reports.
 //
-//	ambit corpus [-dir corpus]
+//	ambit corpus [-config g0|g2a|g2b] [-dir dir]
 //	ambit verify [-dir corpus]
-//	ambit run -arm b0|b|b-hosted|a-local|a-hosted [-limit n] [-llama url]
-//	ambit report [-results results]
+//	ambit run -arm b0|b|b-4b|b-hosted|b-strands|a-local|a-hosted|a-strands
+//	          [-dir corpus] [-results dir] [-offset n] [-limit n] [-concurrency n]
+//	          [-cache-prompt] [-ablation failclosed] [-name s] [-ceiling dollars]
+//	          [-repair run-dirs] [-llama url] [-strands url] [-strands-concurrent]
+//	ambit report [-dir corpus] [-results dir] [-out dir] [-resamples n]
 //	ambit state <record-id>   print the Arm A serialized state
 package main
 
@@ -13,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/scttfrdmn/ambit/internal/cedarq"
 	"github.com/scttfrdmn/ambit/internal/corpus"
@@ -45,19 +49,41 @@ func main() {
 	}
 }
 
+var configs = map[string]gen.Config{"g0": gen.G0, "g2a": gen.G2a, "g2b": gen.G2b}
+
 func cmdCorpus(args []string) error {
 	fs := flag.NewFlagSet("corpus", flag.ExitOnError)
-	dir := fs.String("dir", "corpus", "corpus directory (policies/ must already exist)")
+	cfgName := fs.String("config", "g0", "g0 (1k, corpus/) | g2a (10^5) | g2b (10^6)")
+	dir := fs.String("dir", "", "corpus directory (default: corpus for g0, corpus/<config> otherwise)")
 	fs.Parse(args)
+	cfg, ok := configs[*cfgName]
+	if !ok {
+		return fmt.Errorf("unknown config %q", *cfgName)
+	}
+	if *dir == "" {
+		*dir = "corpus"
+		if *cfgName != "g0" {
+			*dir = filepath.Join("corpus", *cfgName)
+		}
+	}
+	if *cfgName != "g0" {
+		// Each corpus carries its own copy of the frozen policy pair, so its
+		// hash covers the policies it was judged under.
+		if err := copyPolicies("corpus", *dir); err != nil {
+			return err
+		}
+	}
 
 	pol, err := cedarq.LoadPolicies(*dir)
 	if err != nil {
 		return err
 	}
-	items, err := gen.Generate(gen.G0)
+	start := time.Now()
+	items, err := gen.Generate(cfg)
 	if err != nil {
 		return err
 	}
+	fmt.Fprintf(os.Stderr, "generated %d records in %s\n", len(items), time.Since(start).Round(time.Second))
 	if err := gen.CrossCheck(pol, items); err != nil {
 		return err
 	}
@@ -66,11 +92,24 @@ func cmdCorpus(args []string) error {
 	for i, it := range items {
 		recs[i], truths[i] = it.Record, it.Truth
 	}
-	if err := corpus.WriteJSONL(filepath.Join(*dir, corpus.RecordsFile), recs); err != nil {
-		return err
-	}
-	if err := corpus.WriteJSONL(filepath.Join(*dir, corpus.OracleFile), truths); err != nil {
-		return err
+	if *cfgName == "g0" {
+		if err := corpus.WriteJSONL(filepath.Join(*dir, corpus.RecordsFile), recs); err != nil {
+			return err
+		}
+		if err := corpus.WriteJSONL(filepath.Join(*dir, corpus.OracleFile), truths); err != nil {
+			return err
+		}
+	} else {
+		old, _ := filepath.Glob(filepath.Join(*dir, "*-[0-9][0-9][0-9].jsonl.gz"))
+		for _, o := range old {
+			os.Remove(o)
+		}
+		if err := corpus.WriteShards(*dir, "records", recs); err != nil {
+			return err
+		}
+		if err := corpus.WriteShards(*dir, "oracle", truths); err != nil {
+			return err
+		}
 	}
 	hash, err := corpus.WriteSums(*dir)
 	if err != nil {
@@ -78,7 +117,23 @@ func cmdCorpus(args []string) error {
 	}
 	summarize(items)
 	fmt.Printf("\ncross-check: cedar agrees with the oracle on %d/%d records, with true facts and with none\n", len(items), len(items))
-	fmt.Printf("law 2: all injected records deny\ncorpus hash: %s\n", hash)
+	fmt.Printf("law 2: all injected records deny\ncorpus %s: %d records, hash %s\n", *dir, len(items), hash)
+	return nil
+}
+
+func copyPolicies(from, to string) error {
+	if err := os.MkdirAll(filepath.Join(to, corpus.PolicyDir), 0o755); err != nil {
+		return err
+	}
+	for _, f := range []string{corpus.CedarFile, corpus.ProseFile} {
+		b, err := os.ReadFile(filepath.Join(from, corpus.PolicyDir, f))
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(to, corpus.PolicyDir, f), b, 0o644); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

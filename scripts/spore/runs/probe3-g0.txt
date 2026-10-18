@@ -1,0 +1,4 @@
+#strands-cuda
+-arm a-local -dir corpus -limit 300 -concurrency 32 -cache-prompt -name probe3-a-local-c32
+-arm a-strands -dir corpus -limit 200 -name probe3-a-strands-kernels
+-arm b-strands -dir corpus -limit 200 -name probe3-b-strands-kernels

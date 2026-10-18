@@ -39,3 +39,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hypothesis verdicts.
 - `ambit state`, and the `make model`, `make serve`, `make run` and
   `make report` runbooks.
+- Arms A-strands and B-strands (library): a client for strands-decider's
+  `/v1/systemone`, pinned to strands-decider-2B-hobson-v21, that sends one
+  request at a time; the agent state in strands-decider's tool-call hook
+  layout, with arguments byte-identical to Python's `json.dumps`; the
+  A-strands gate, which sends the hook-style and shared gate questions in
+  one request; and a strands-decider PIP for the Cedar arm.
+- G2 corpora:
+  - 10^5 and 10^6 records, stored as gzipped 100k-record shards. Hashes
+    cover the decompressed content, so G0's hash is unchanged.
+  - New conditions: patient-header twins and swarm traces (cost,
+    delegation, relay).
+  - `ambit corpus -config g0|g2a|g2b`.
+- Runner at scale:
+  - `-offset`/`-limit` shard ranges and `-concurrency`.
+  - Streaming reads of sharded corpora.
+  - Manifest records the range, concurrency, host, prompt caching, prose
+    hash and ablation.
+  - Falls back to a `GIT_COMMIT` file where there is no repository.
+- `-cache-prompt` for llama-server prefix reuse, checked for equivalence
+  before use.
+- `-ablation failclosed`, the registered Arm A prose ablation.
+- `-ceiling`: the hosted spend ceiling per results directory, one per gate.
+  The spend ledger is locked per process.
+- Hosted retries with backoff on rate limits, 5xx and transport errors, up
+  to 10 attempts; never retried on quota or auth errors.
+- `-repair` re-asks only transport or capacity failures. The report
+  substitutes those repairs for errors and for nothing else.
+- Arms `a-strands` and `b-strands` in the CLI (`-strands`,
+  `-strands-concurrent`).
+- Report:
+  - Merges shard runs into exact covers, and refuses shards that disagree
+    on prose or models.
+  - Builds conditions dynamically.
+  - Plots Arm A operating curves.
+  - H-main at a matched clean false-deny, with the 10% headline bound and
+    a label for matches with no comparable operating point.
+  - Header-pair flips, with B's header-added cells marked structural.
+  - Swarm-trace accuracy and relay breach rate.
+  - Within-ambit accuracy per arm.
+  - Refusals shown as structural for arms that cannot refuse.
+  - Law 3 checks the arms that share a serializer.
+- `scripts/spore`, which runs work on spore.host:
+  - Stages a bundle and a runs file, then launches spot GPU instances with
+    a TTL, a cost limit of at most $20, a `project=ambit` tag and a scoped
+    S3 grant.
+  - Instance job with pinned llama.cpp and strands-decider runtimes, logs
+    streamed to S3, and a no-progress watchdog.
+  - Local dead-man watcher, fetch, and straggler check.
+
+### Changed
+
+- Determining policies are sorted, so decisions and quill entries are
+  reproducible.
+- The G1 report, regenerated with the current code:
+  - It adds the B0-coverage and matched-point H-main sections and labels
+    the registered H-main as the G1 metric.
+  - Arms that cannot refuse show "cannot refuse (structural)".
+  - The G1 numbers are unchanged.
