@@ -30,6 +30,9 @@ push() {
 }
 ( while true; do sleep 60; push; done ) &
 PUSHER=$!
+# On any exit, stop the background jobs and push what there is, so the
+# instance completes instead of idling until its TTL.
+trap 'kill $PUSHER 2>/dev/null; docker rm -f llama >/dev/null 2>&1; pkill -f "strands-decider serve" 2>/dev/null; push' EXIT
 
 log "host $(hostname); arms: $ARMS; extra: ${EXTRA[*]:-}"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader | tee -a "$LOG"
@@ -93,8 +96,5 @@ for arm in $ARMS; do
 	[ $r -ne 0 ] && rc=$r
 done
 
-kill "$PUSHER" 2>/dev/null
-push
 log "done, exit $rc"
-push
 exit $rc

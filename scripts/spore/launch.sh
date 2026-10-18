@@ -11,6 +11,12 @@
 set -euo pipefail
 
 NAME="$1"; CORPUS="$2"; ARMS="$3"; TTL="$4"; LIMIT="$5"; shift 5
+# Law 6: $20 per run on AWS. spored enforces --cost-limit on the instance.
+if ! [[ "$LIMIT" =~ ^[0-9]+(\.[0-9]+)?$ ]] || awk "BEGIN{exit !($LIMIT > 20)}"; then
+	echo "cost limit must be a number no greater than 20 (Law 6), got '$LIMIT'" >&2
+	exit 1
+fi
+[ -n "$TTL" ] || { echo "a TTL is required" >&2; exit 1; }
 REGION="${AMBIT_REGION:-us-west-2}"
 TYPE="${AMBIT_INSTANCE:-g6.xlarge}"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
@@ -23,6 +29,10 @@ ROOT=$(git rev-parse --show-toplevel)
 cd "$ROOT"
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 	echo "working tree is dirty; commit first so the manifests name the code that ran" >&2
+	exit 1
+fi
+if [ -n "$(git ls-files --others --exclude-standard -- "$CORPUS")" ]; then
+	echo "$CORPUS has untracked files; only committed corpora are run" >&2
 	exit 1
 fi
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o "$TMP/ambit" ./cmd/ambit
