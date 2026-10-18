@@ -17,6 +17,7 @@ import (
 	"github.com/scttfrdmn/ambit/internal/hosted"
 	"github.com/scttfrdmn/ambit/internal/jeb"
 	"github.com/scttfrdmn/ambit/internal/run"
+	"github.com/scttfrdmn/ambit/internal/strands"
 	"github.com/scttfrdmn/ambit/internal/serialize"
 )
 
@@ -43,6 +44,7 @@ func cmdRun(args []string) error {
 	ablation := fs.String("ablation", "", "Arm A prose ablation: failclosed")
 	name := fs.String("name", "", "arm and run name (default: the arm, plus -ablation if any)")
 	llama := fs.String("llama", "http://127.0.0.1:8080", "llama-server serving the pinned Jebadiah GGUF")
+	strandsURL := fs.String("strands", "http://127.0.0.1:8000", "strands-decider serve, with the pinned hobson-v21 checkpoint")
 	fs.Parse(args)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -57,7 +59,7 @@ func cmdRun(args []string) error {
 		return err
 	}
 	prose := string(b)
-	isA := *arm == "a-local" || *arm == "a-hosted"
+	isA := *arm == "a-local" || *arm == "a-hosted" || *arm == "a-strands"
 	if *ablation != "" {
 		ablate, ok := ablations[*ablation]
 		if !ok {
@@ -94,6 +96,15 @@ func cmdRun(args []string) error {
 		j := &arms.Jeb{C: c, Pin: jeb.Jebadiah4BV2}
 		opt.Models["jebadiah"] = j.ID() + " sha256:" + jeb.Jebadiah4BV2.FileSHA256
 		return j, nil
+	}
+	decider := func() (*strands.Client, error) {
+		c, err := strands.New(ctx, *strandsURL)
+		if err != nil {
+			return nil, fmt.Errorf("strands-decider at %s: %w", *strandsURL, err)
+		}
+		opt.Models["strands"] = strands.HobsonV21.ID() + " base " + strands.HobsonV21.BaseRepo + "@" + strands.HobsonV21.BaseRevision +
+			" server " + strands.HobsonV21.Server
+		return c, nil
 	}
 	remote := func() (*arms.Hosted, error) {
 		l, err := hosted.OpenLedger(filepath.Join(*results, "spend.jsonl"), armName, runCapMicros, projectCapMicros)
@@ -140,6 +151,18 @@ func cmdRun(args []string) error {
 			return err
 		}
 		g = &arms.Model{Arm: armName, Policy: prose, M: h}
+	case "a-strands":
+		c, err := decider()
+		if err != nil {
+			return err
+		}
+		g = &arms.Strands{Arm: armName, Policy: prose, C: c, Pin: strands.HobsonV21}
+	case "b-strands":
+		c, err := decider()
+		if err != nil {
+			return err
+		}
+		g = &arms.Cedar{Arm: armName, Policies: pol, PIP: &arms.StrandsPIP{C: c, Pin: strands.HobsonV21}}
 	default:
 		return fmt.Errorf("unknown arm %q", *arm)
 	}
