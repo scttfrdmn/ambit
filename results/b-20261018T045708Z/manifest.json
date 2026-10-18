@@ -1,0 +1,16 @@
+{
+  "run": "b-20261018T045708Z",
+  "arm": "b",
+  "corpus_hash": "d819172f7133679273ccce0f0a57b2fff3440089bf92a7c49235c96371622245",
+  "git_commit": "63fcfa87892b2c9a52ff2fec058001e8901d2209",
+  "git_dirty": false,
+  "models": {
+    "jebadiah": "frontier-infra/jebadiah-4b-v2-GGUF@446099f37ca1cea4324d8866b44a1dbc15f77c94/jebadiah-4b-v2-Q8_0.gguf sha256:36f4a54fe07ed79b186a2128bfb1598ba210b1ab0a945296069a4e5cdbb9875a"
+  },
+  "started": "2026-10-18T04:57:08Z",
+  "finished": "2026-10-18T04:59:54Z",
+  "records": 1000,
+  "decided": 1000,
+  "errors": 0,
+  "spend_micros": 0
+}

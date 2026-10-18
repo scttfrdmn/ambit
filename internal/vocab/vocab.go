@@ -56,6 +56,16 @@ var Tools = []Tool{
 // a call to one is outside ambit.
 var UnknownTools = []string{"shell_exec", "s3_put_object", "install_package", "modify_iam_policy", "browser_automation"}
 
+// UnknownToolDescriptions are what an agent's tool registry says about the
+// unknown tools; the Arm A serializer lists them alongside the known ones.
+var UnknownToolDescriptions = map[string]string{
+	"shell_exec":         "Run a shell command on the analysis host.",
+	"s3_put_object":      "Write an object to an S3 bucket.",
+	"install_package":    "Install a software package into the analysis environment.",
+	"modify_iam_policy":  "Change an AWS IAM policy.",
+	"browser_automation": "Drive a headless web browser.",
+}
+
 // ToolByName returns the known tool with the given name.
 func ToolByName(name string) (Tool, bool) {
 	for _, t := range Tools {
