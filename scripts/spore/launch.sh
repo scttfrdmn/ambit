@@ -4,8 +4,8 @@
 #   scripts/spore/launch.sh <name> <corpus-dir> "<arms>" <ttl> <cost-limit> [ambit run flags...]
 #
 # Builds ambit for linux/amd64, bundles it with the corpus, uploads the
-# bundle and gpu-job.sh to spawn's results bucket, and launches a spot
-# g6.xlarge tagged project=ambit with the given TTL and cost limit. The
+# bundle and gpu-job.sh to spawn's results bucket, and launches a g6.xlarge
+# (AMBIT_INSTANCE, AMBIT_REGION, AMBIT_SPOT=0 for on-demand) tagged project=ambit with the given TTL and cost limit. The
 # instance terminates when the job finishes. Fetch results with fetch.sh and
 # check for stragglers with stragglers.sh.
 set -euo pipefail
@@ -46,7 +46,11 @@ aws s3 cp "$TMP/bundle.tgz" "$STAGE/bundle.tgz" --quiet
 aws s3 cp scripts/spore/gpu-job.sh "$STAGE/gpu-job.sh" --quiet
 
 CMD="aws s3 cp $STAGE/gpu-job.sh /tmp/gpu-job.sh --quiet && bash /tmp/gpu-job.sh $STAGE '$ARMS' -dir $CORPUS $*"
-spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" --spot \
+# Spot by default; AMBIT_SPOT=0 launches on-demand (spored's cost limit is
+# computed at the on-demand rate either way).
+PURCHASE=(--spot)
+[ "${AMBIT_SPOT:-1}" = 0 ] && PURCHASE=()
+spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" "${PURCHASE[@]}" \
 	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate \
 	--volume-size 80 --tag project=ambit --tag "run=$NAME" \
 	--command "$CMD" -y
