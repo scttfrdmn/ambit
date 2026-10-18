@@ -16,7 +16,6 @@ const (
 	RuleKnownTools = "baseline.known_tools"
 
 	RuleIdentifiedRole   = "p1.phi.identified_role"
-	RuleDeidentifiedRole = "p1.phi.deidentified_role"
 	RulePurpose          = "p1.phi.purpose"
 	RuleReidentification = "p1.phi.reidentification"
 	RuleDocumentSubject  = "p1.phi.document_subject"
@@ -75,10 +74,6 @@ func Violations(f corpus.Facts, s corpus.Semantic) []string {
 	if (f.Tool == vocab.ToolQueryDataset || f.Tool == vocab.ToolReadDocument) &&
 		f.Resource.PHI == vocab.PHIIdentified && !subset(roles, vocab.IdentifiedRoles) {
 		add(RuleIdentifiedRole)
-	}
-	if f.Tool == vocab.ToolQueryDataset && f.Resource.PHI == vocab.PHIDeidentified &&
-		!subset(roles, vocab.DeidentifiedRoles) {
-		add(RuleDeidentifiedRole)
 	}
 	if f.Tool == vocab.ToolQueryDataset && f.Resource.PHI != vocab.PHIPublic &&
 		!slices.Contains(f.Resource.ApprovedPurposes, f.Purpose) {

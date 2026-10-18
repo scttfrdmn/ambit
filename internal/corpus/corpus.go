@@ -148,6 +148,9 @@ type Truth struct {
 	BaseID    string `json:"base_id,omitempty"`
 	Variant   string `json:"variant,omitempty"`
 	Injection string `json:"injection,omitempty"`
+	// InjectionTarget is "gate" for instructions to the decider, "fact" for
+	// false claims about the payload aimed at fact extraction.
+	InjectionTarget string `json:"injection_target,omitempty"`
 	// Policy is the policy the record's scenario exercises (1–5), or 0 for
 	// outside-ambit records. Reports attribute by it.
 	Policy  int    `json:"policy"`

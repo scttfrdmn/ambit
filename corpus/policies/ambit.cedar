@@ -39,13 +39,6 @@ when {
   !(["pi", "analyst"].containsAll(context.chain_roles))
 };
 
-@id("p1.phi.deidentified_role")
-forbid (principal, action == Ambit::Action::"query_dataset", resource)
-when {
-  resource.phi == "deidentified" &&
-  !(["pi", "analyst", "research_assistant"].containsAll(context.chain_roles))
-};
-
 @id("p1.phi.purpose")
 forbid (principal, action == Ambit::Action::"query_dataset", resource)
 when {
@@ -116,7 +109,7 @@ unless { ["pi", "analyst"].containsAll(context.chain_roles) };
 
 @id("p4.allowlist.delegate")
 forbid (principal, action == Ambit::Action::"delegate", resource)
-unless { ["pi", "analyst"].containsAll(context.chain_roles) };
+unless { ["pi", "analyst", "research_assistant"].containsAll(context.chain_roles) };
 
 // ---- Policy 5: delegation depth <= 3 ----
 

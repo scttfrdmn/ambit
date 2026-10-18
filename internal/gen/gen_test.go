@@ -1,7 +1,9 @@
 package gen
 
 import (
+	"bytes"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -60,6 +62,9 @@ func TestCrossCheckCatchesDivergence(t *testing.T) {
 	}
 	items := generate(t)
 	mutations := map[string][2]string{
+		"swarm cap boundary":   {"context.swarm_spent + context.est_cost > context.swarm_cap", "context.swarm_spent + context.est_cost >= context.swarm_cap"},
+		"ra cannot delegate":   {`unless { ["pi", "analyst", "research_assistant"].containsAll(context.chain_roles) };` + "\n\n// ---- Policy 5", `unless { ["pi", "analyst"].containsAll(context.chain_roles) };` + "\n\n// ---- Policy 5"},
+		"allowlist actor only": {`unless { ["pi", "analyst"].containsAll(context.chain_roles) };` + "\n\n@id(\"p4.allowlist.delegate\")", `unless { ["pi", "analyst"].contains(principal.role) };` + "\n\n@id(\"p4.allowlist.delegate\")"},
 		"cap boundary":         {"context.task_spent + context.est_cost > context.task_cap", "context.task_spent + context.est_cost >= context.task_cap"},
 		"swarm cap dropped":    {"context.swarm_spent + context.est_cost > context.swarm_cap", "false"},
 		"depth off by one":     {"when { context.depth > 3 }", "when { context.depth > 4 }"},
@@ -112,23 +117,36 @@ func TestB0FailsClosed(t *testing.T) {
 	}
 }
 
-// TestFrozenCorpusMatchesGenerator: the committed corpus is what the
-// generator produces, and its sums verify.
+// TestFrozenCorpusMatchesGenerator: the committed corpus is byte for byte
+// what the generator produces, and its sums verify.
 func TestFrozenCorpusMatchesGenerator(t *testing.T) {
 	if _, err := corpus.Verify(corpusDir); err != nil {
 		t.Fatal(err)
 	}
-	recs, err := corpus.ReadJSONL[corpus.Record](corpusDir + "/" + corpus.RecordsFile)
-	if err != nil {
+	items := generate(t)
+	recs := make([]corpus.Record, len(items))
+	truths := make([]corpus.Truth, len(items))
+	for i, it := range items {
+		recs[i], truths[i] = it.Record, it.Truth
+	}
+	tmp := t.TempDir()
+	if err := corpus.WriteJSONL(filepath.Join(tmp, corpus.RecordsFile), recs); err != nil {
 		t.Fatal(err)
 	}
-	items := generate(t)
-	if len(recs) != len(items) {
-		t.Fatalf("frozen corpus has %d records, generator %d", len(recs), len(items))
+	if err := corpus.WriteJSONL(filepath.Join(tmp, corpus.OracleFile), truths); err != nil {
+		t.Fatal(err)
 	}
-	for i := range recs {
-		if recs[i].ID != items[i].Record.ID || recs[i].Payload != items[i].Record.Payload {
-			t.Fatalf("frozen record %s differs from generator", recs[i].ID)
+	for _, f := range []string{corpus.RecordsFile, corpus.OracleFile} {
+		want, err := os.ReadFile(filepath.Join(tmp, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := os.ReadFile(filepath.Join(corpusDir, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Errorf("frozen %s differs from the generator; run make corpus", f)
 		}
 	}
 }

@@ -49,7 +49,7 @@ var Tools = []Tool{
 	{ToolRunCompute, "Submit a batch compute job.",
 		[]string{RolePI, RoleAnalyst}},
 	{ToolDelegate, "Spawn a sub-agent with a given role to carry out a subtask.",
-		[]string{RolePI, RoleAnalyst}},
+		[]string{RolePI, RoleAnalyst, RoleRA}},
 }
 
 // UnknownTools are tool names outside the vocabulary. No policy permits them;
@@ -76,8 +76,9 @@ const (
 // IdentifiedRoles may access identified data (policy 1).
 var IdentifiedRoles = []string{RolePI, RoleAnalyst}
 
-// DeidentifiedRoles may access deidentified data (policy 1).
-var DeidentifiedRoles = []string{RolePI, RoleAnalyst, RoleRA}
+// Delegators are the roles allowed to delegate; only they can appear above
+// the last link of a delegation chain.
+var Delegators = []string{RolePI, RoleAnalyst, RoleRA}
 
 // Purpose is a declared purpose of use. Subject is the approved subject that
 // identified documents read under the purpose must be about.
