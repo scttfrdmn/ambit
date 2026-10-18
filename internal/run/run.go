@@ -149,8 +149,16 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 	return m, writeManifest()
 }
 
+// isSpendStop reports errors that would repeat on every remaining record:
+// a spend cap, or a hosted account that cannot be billed or is not
+// authorized. Recording them as decisions would score outages as denials.
 func isSpendStop(e string) bool {
-	return strings.Contains(e, "per-run cap") || strings.Contains(e, "project ceiling")
+	for _, s := range []string{"per-run cap", "project ceiling", "insufficient_quota", "credit_balance_exhausted", "401 Unauthorized", "403 Forbidden"} {
+		if strings.Contains(e, s) {
+			return true
+		}
+	}
+	return false
 }
 
 func gitState() (string, bool) {
