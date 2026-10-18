@@ -24,3 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make verify`.
 - Mutation tests showing that the cross-check catches divergence between
   Cedar and prose.
+- Arm gates:
+  - B0: Cedar over structural facts.
+  - B: Cedar plus a PIP, asked only at the margin and only about the payload.
+  - A: a decision model over the serialized agent state.
+- Go client for Jebadiah GGUF models on llama-server. It matches the model
+  card's published output.
+- Thin OpenAI Decisions client with a spend ledger that enforces the
+  per-run and project caps.
+- `ambit run` writes manifest, decisions, raw replies, and LKI quill entries
+  to an external results directory.
+- `ambit report` reports per policy and condition with family bootstrap
+  intervals, flip rates, latency, cost, auditability, PIP accuracy, and
+  hypothesis verdicts.
+- `ambit state`, and the `make model`, `make serve`, `make run` and
+  `make report` runbooks.
