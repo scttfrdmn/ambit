@@ -43,7 +43,7 @@ G2, before any G2 inference. See issue #16.
 
 ## Interpreting A-hosted
 
-The analysis was done before any re-run.
+No re-run was warranted: the false denials are neither mostly refusals nor confined to one policy.
 
 - **Exact zeros.** A-hosted returned P(allowed) = 0.0 on 619 of 1,000
   records. Exact zero is its confident-deny output. On records that should
