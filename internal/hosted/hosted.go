@@ -102,7 +102,7 @@ func EstimateTokens(state, instructions string) int64 {
 func Cost(n int64) int64 { return (n*InputMicrosPerMTok + 999_999) / 1_000_000 }
 
 // MaxAttempts bounds the HTTP attempts per call, the first included.
-const MaxAttempts = 6
+const MaxAttempts = 10
 
 // Ask asks one predicate about state. Rate limits (a 429 that is not a
 // quota or billing error), 500, 502, 503, 504, and transport errors are

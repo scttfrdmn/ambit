@@ -412,3 +412,60 @@ func BenchmarkReport1e6(b *testing.B) {
 		}
 	}
 }
+
+// TestRepair: a repair run replaces errored decisions in the scored set and
+// nothing else.
+func TestRepair(t *testing.T) {
+	truths := synth(20, 4)
+	n := len(truths)
+	cdir, rdir := t.TempDir(), t.TempDir()
+	hash := writeCorpus(t, cdir, truths)
+	c, err := LoadCorpus(cdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := synthDecisions(truths, "a-hosted", 5)
+	for i := 0; i < 6; i++ {
+		a[i].Allow, a[i].Error = false, "decisions API: 429 Too Many Requests"
+	}
+	writeRun(t, rdir, hash, "a-hosted", "2026-10-18T01:00:00Z", a, 0, n, false)
+	// The repair re-asks records 0-5 (all now answered) and also returns a
+	// different answer for record 10, which was not an error and must not change.
+	rep := []decision{}
+	for i := 0; i < 6; i++ {
+		d := a[i]
+		d.Error, d.Allow = "", i%2 == 0
+		rep = append(rep, d)
+	}
+	keep := a[10]
+	other := keep
+	other.Allow = !keep.Allow
+	rep = append(rep, other)
+	rd := filepath.Join(rdir, "a-hosted-repair")
+	if err := os.MkdirAll(rd, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeJSONL(t, filepath.Join(rd, "decisions.jsonl"), rep)
+	m := run.Manifest{Run: "a-hosted-repair", Arm: "a-hosted", CorpusHash: hash, Started: "2026-10-18T02:00:00Z",
+		Finished: "2026-10-18T02:01:00Z", Records: len(rep), Decided: len(rep), RepairOf: []string{"a-hosted-whole"}}
+	b, _ := json.Marshal(m)
+	if err := os.WriteFile(filepath.Join(rd, "manifest.json"), b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	l, err := Load(rdir, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	arm := l.Arms["a-hosted"]
+	if arm == nil || len(arm.errs) != 0 || !strings.Contains(arm.Note, "6 of 6 errored decisions re-asked") {
+		t.Fatalf("arm %+v", arm)
+	}
+	for i := 0; i < 6; i++ {
+		if arm.decs[i].allow != (i%2 == 0) {
+			t.Errorf("record %d not repaired", i)
+		}
+	}
+	if arm.decs[10].allow != keep.Allow {
+		t.Error("a repair overwrote a decision that was not an error")
+	}
+}

@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/scttfrdmn/ambit/internal/arms"
@@ -44,6 +46,7 @@ func cmdRun(args []string) error {
 	name := fs.String("name", "", "arm and run name (default: the arm, plus -ablation if any)")
 	llama := fs.String("llama", "http://127.0.0.1:8080", "llama-server serving the pinned Jebadiah GGUF")
 	ceiling := fs.Float64("ceiling", 200, "hosted spend ceiling in dollars for this results directory's ledger (G1 $200, G2 $300, G3 $500)")
+	repair := fs.String("repair", "", "comma-separated run directories: re-ask only the records whose decisions there are errors")
 	strandsConcurrent := fs.Bool("strands-concurrent", false, "send strands-decider requests concurrently (Linux CUDA only; see internal/strands)")
 	strandsURL := fs.String("strands", "http://127.0.0.1:8000", "strands-decider serve, with the pinned hobson-v21 checkpoint")
 	fs.Parse(args)
@@ -85,6 +88,15 @@ func cmdRun(args []string) error {
 	if isA {
 		h := sha256.Sum256([]byte(prose))
 		opt.ProseSHA256 = hex.EncodeToString(h[:])
+	}
+	if *repair != "" {
+		if opt.IDs, opt.RepairOf, err = erroredRecords(strings.Split(*repair, ","), armName); err != nil {
+			return err
+		}
+		if len(opt.IDs) == 0 {
+			fmt.Println("no errored decisions to repair")
+			return nil
+		}
 	}
 
 	local := func() (*arms.Jeb, error) {
@@ -191,4 +203,35 @@ func cmdRun(args []string) error {
 		return fmt.Errorf("run stopped: %s", m.Stopped)
 	}
 	return nil
+}
+
+// erroredRecords collects the records whose decisions are errors in the given
+// run directories, which must all be runs of arm.
+func erroredRecords(dirs []string, arm string) (map[string]bool, []string, error) {
+	ids := map[string]bool{}
+	var runs []string
+	for _, d := range dirs {
+		var m run.Manifest
+		b, err := os.ReadFile(filepath.Join(d, "manifest.json"))
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := json.Unmarshal(b, &m); err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", d, err)
+		}
+		if m.Arm != arm {
+			return nil, nil, fmt.Errorf("%s is a run of %s, not %s", d, m.Arm, arm)
+		}
+		runs = append(runs, m.Run)
+		err = corpus.Each(d, "decisions", func(dec arms.Decision) error {
+			if dec.Error != "" {
+				ids[dec.ID] = true
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return ids, runs, nil
 }

@@ -394,6 +394,7 @@ func Load(dir string, c *Corpus) (*Loaded, error) {
 	n := c.Len()
 	l := &Loaded{Arms: map[string]*Arm{}}
 	byArm := map[string][]span{}
+	repairs := map[string][]span{}
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -416,6 +417,10 @@ func Load(dir string, c *Corpus) (*Loaded, error) {
 				why += ", stopped: " + m.Stopped
 			}
 			l.Unscored = append(l.Unscored, fmt.Sprintf("run %s is incomplete (%s)", m.Run, why))
+			continue
+		}
+		if len(m.RepairOf) > 0 {
+			repairs[m.Arm] = append(repairs[m.Arm], span{m: m, dir: filepath.Join(dir, e.Name())})
 			continue
 		}
 		s := span{m: m, dir: filepath.Join(dir, e.Name()), start: m.RangeStart, end: m.RangeEnd}
@@ -474,6 +479,18 @@ func Load(dir string, c *Corpus) (*Loaded, error) {
 	wg.Wait()
 	for _, err := range errs {
 		if err != nil {
+			return nil, err
+		}
+	}
+	for name, rs := range repairs {
+		a := l.Arms[name]
+		if a == nil {
+			for _, s := range rs {
+				l.Unscored = append(l.Unscored, fmt.Sprintf("repair run %s has no scored arm %s to repair", s.m.Run, name))
+			}
+			continue
+		}
+		if err := applyRepairs(c, a, rs); err != nil {
 			return nil, err
 		}
 	}
@@ -560,6 +577,69 @@ func coverage(spans []span, n int) int {
 	return k
 }
 
+// toDec compacts one decision.
+func toDec(d decision) dec {
+	x := dec{p: math.NaN(), latency: d.LatencyNS, cost: d.CostMicros, calls: int32(d.ModelCalls),
+		allow: d.Allow, refused: d.Refused, det: len(d.Determining) > 0}
+	if d.PAllow != nil {
+		x.p = *d.PAllow
+	}
+	for f, ans := range d.Facts {
+		if k := slices.Index(facts, f); k >= 0 {
+			x.facts |= 1 << (2 * k)
+			if ans.Value {
+				x.facts |= 2 << (2 * k)
+			}
+		}
+	}
+	return x
+}
+
+// applyRepairs substitutes the decisions of repair runs (oldest first) for
+// errored decisions in the scored set, and for nothing else.
+func applyRepairs(c *Corpus, a *Arm, repairs []span) error {
+	sort.Slice(repairs, func(i, j int) bool { return repairs[i].m.Started < repairs[j].m.Started })
+	before, fixed := len(a.errs), 0
+	var names []string
+	for _, s := range repairs {
+		names = append(names, s.m.Run)
+		a.Runs = append(a.Runs, s.m)
+		err := corpus.Each(s.dir, "decisions", func(d decision) error {
+			i, ok := c.index[d.ID]
+			if !ok {
+				return fmt.Errorf("repair run %s decided %s, which is not in the corpus", s.m.Run, d.ID)
+			}
+			if _, errored := a.errs[i]; !errored || d.Error != "" {
+				return nil
+			}
+			a.decs[i] = toDec(d)
+			delete(a.errs, i)
+			fixed++
+			if a.shared != nil && d.PAllowShared != nil {
+				a.shared[i] = *d.PAllowShared
+			}
+			if a.state != nil && d.StateSHA256 != "" {
+				h := fnv.New64a()
+				h.Write([]byte(d.StateSHA256))
+				a.state[i] = h.Sum64() | 1
+			}
+			if d.ServedModel != "" && !strings.Contains(d.ServedModel, "frontier-infra") {
+				a.served[d.ServedModel+" ("+d.CallDate+")"] = true
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	note := fmt.Sprintf("%d of %d errored decisions re-asked in repair runs %s; %d remain errors", fixed, before, strings.Join(names, ", "), len(a.errs))
+	if a.Note != "" {
+		note = a.Note + "; " + note
+	}
+	a.Note = note
+	return nil
+}
+
 func loadRun(c *Corpus, a *Arm, s span, mu *sync.Mutex) error {
 	got := 0
 	seen := make([]bool, s.end-s.start)
@@ -580,20 +660,7 @@ func loadRun(c *Corpus, a *Arm, s span, mu *sync.Mutex) error {
 		}
 		seen[int(i)-s.start] = true
 		got++
-		x := dec{p: math.NaN(), latency: d.LatencyNS, cost: d.CostMicros, calls: int32(d.ModelCalls),
-			allow: d.Allow, refused: d.Refused, det: len(d.Determining) > 0}
-		if d.PAllow != nil {
-			x.p = *d.PAllow
-		}
-		for f, ans := range d.Facts {
-			if k := slices.Index(facts, f); k >= 0 {
-				x.facts |= 1 << (2 * k)
-				if ans.Value {
-					x.facts |= 2 << (2 * k)
-				}
-			}
-		}
-		a.decs[i] = x
+		a.decs[i] = toDec(d)
 		if d.PAllowShared != nil {
 			if shared == nil {
 				shared = map[int32]float64{}

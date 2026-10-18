@@ -60,6 +60,10 @@ type Manifest struct {
 	// Ablation names the registered prose ablation, if any, that produced it.
 	ProseSHA256 string `json:"prose_sha256,omitempty"`
 	Ablation    string `json:"ablation,omitempty"`
+	// RepairOf names the runs whose errored decisions this run re-asks. A
+	// repair run decides only those records; the report substitutes its
+	// decisions for the errors and for nothing else.
+	RepairOf []string `json:"repair_of,omitempty"`
 }
 
 // Options configure a run.
@@ -78,6 +82,10 @@ type Options struct {
 	CachePrompt bool
 	ProseSHA256 string
 	Ablation    string
+	// IDs, if set, restricts the run to these records (a repair run), and
+	// RepairOf names the runs they come from.
+	IDs      map[string]bool
+	RepairOf []string
 	// Spent reports the run's hosted spend so far.
 	Spent func() int64
 	// Progress is called after each record, with the count decided so far.
@@ -141,6 +149,10 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 		// A shard's name carries its range, so shards started together do
 		// not collide.
 		m.Run += fmt.Sprintf("-%d-%d", start, end)
+	}
+	if opt.IDs != nil {
+		m.Run += "-repair"
+		m.Records, m.RepairOf = len(opt.IDs), opt.RepairOf
 	}
 	dir := filepath.Join(opt.ResultsDir, m.Run)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -257,6 +269,9 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 		}
 		if i >= end || halted() {
 			return errDone
+		}
+		if opt.IDs != nil && !opt.IDs[r.ID] {
+			return nil
 		}
 		jobs <- job{i, r}
 		return nil
