@@ -1,0 +1,2 @@
+#strands-cuda
+-arm a-strands -dir corpus/g2a -ablation failclosed

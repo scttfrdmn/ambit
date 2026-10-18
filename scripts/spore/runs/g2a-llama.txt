@@ -1,0 +1,4 @@
+-arm b0 -dir corpus/g2a
+-arm b-4b -dir corpus/g2a -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2a -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2a -concurrency 16 -cache-prompt -ablation failclosed
