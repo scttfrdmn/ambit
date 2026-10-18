@@ -34,7 +34,25 @@ Requires Go 1.27+.
 
 ### `make corpus`
 
-Generates the frozen corpus under `corpus/` and writes its SHA-256 hash.
+Generates the 1,000-record corpus from a fixed seed into `corpus/`:
+
+- `records.jsonl` holds what a gate may see.
+- `oracle.jsonl` holds the ground truth. Arms never read it.
+
+It writes `SHA256SUMS` and prints the corpus hash, which is the SHA-256 of
+`SHA256SUMS`. Before writing anything it checks two things, and it fails if
+either check fails:
+
+- **Cross-check.** Cedar (`corpus/policies/ambit.cedar`) agrees with the
+  oracle on every record, both with the true semantic facts and with none.
+  The oracle is the prose in `ambit.md`, implemented in Go.
+- **Law 2.** Every injected record is denied.
+
+The output is deterministic, so rerunning reproduces the same hash.
+
+### `make verify`
+
+Confirms that the corpus files still match `SHA256SUMS` and prints the hash.
 
 ### `make run ARM=b0|b|a-local|a-hosted`
 

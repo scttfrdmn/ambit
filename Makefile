@@ -1,4 +1,4 @@
-.PHONY: build test corpus run report
+.PHONY: build test corpus verify run report
 
 ARM ?= b0
 
@@ -10,6 +10,9 @@ test:
 
 corpus:
 	go run ./cmd/ambit corpus
+
+verify:
+	go run ./cmd/ambit verify
 
 run:
 	go run ./cmd/ambit run -arm $(ARM)
