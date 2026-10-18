@@ -11,15 +11,8 @@
 # scans only us-west-2. Terminating needs no SSH and works on a hung host.
 set -uo pipefail
 NAME="$1"; REGION="$2"; TTL="$3"
-minutes() {
-	local s="$1" h=0 m=0
-	if [[ "$s" =~ ^[0-9]+$ ]]; then echo "$s"; return; fi
-	[[ "$s" =~ ([0-9]+)h ]] && h=${BASH_REMATCH[1]}
-	[[ "$s" =~ ([0-9]+)m ]] && m=${BASH_REMATCH[1]}
-	if [ $((h + m)) -eq 0 ]; then echo "cannot parse TTL '$s'" >&2; exit 2; fi
-	echo $((10#$h * 60 + 10#$m))
-}
-TTLM=$(minutes "$TTL") || exit 2
+. "$(dirname "$0")/ttl.sh"
+TTLM=$(ttl_minutes "$TTL") || exit 2
 sleep $(((TTLM + 15) * 60))
 id=$(aws ec2 describe-instances --region "$REGION" \
 	--filters "Name=tag:project,Values=ambit" "Name=tag:run,Values=$NAME" \

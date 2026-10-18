@@ -22,7 +22,8 @@ if ! [[ "$LIMIT" =~ ^[0-9]+(\.[0-9]+)?$ ]] || awk "BEGIN{exit !($LIMIT > 20 || $
 	echo "cost limit must be a number above 0 and no greater than 20 (Law 6), got '$LIMIT'" >&2
 	exit 1
 fi
-[ -n "$TTL" ] || { echo "a TTL is required" >&2; exit 1; }
+. "$(dirname "$0")/ttl.sh"
+ttl_minutes "$TTL" >/dev/null || { echo "a TTL spawn and the dead-man watcher can both read is required (e.g. 8h, 1d12h)" >&2; exit 1; }
 REGION="${AMBIT_REGION:-us-west-2}"
 TYPE="${AMBIT_INSTANCE:-g6.xlarge}"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
