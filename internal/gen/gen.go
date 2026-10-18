@@ -21,10 +21,26 @@ type Config struct {
 	BasePerFamily int
 	Injected      int
 	Variants      int
+	// G2 stages; zero in G0.
+	HeaderPairs int
+	Traces      TraceConfig
 }
 
 // G0 is the G0 corpus: 1,000 records.
 var G0 = Config{Seed: 20261017, Families: 80, BasePerFamily: 8, Injected: 160, Variants: 200}
+
+// G2a is the 10^5 corpus and G2b the 10^6 corpus (registration #33).
+var (
+	G2a = Config{Seed: 20261018, Families: 7_000, BasePerFamily: 8, Injected: 14_000, Variants: 14_000,
+		HeaderPairs: 6_000, Traces: TraceConfig{Cost: 400, Delegation: 600, Relay: 600}}
+	G2b = Config{Seed: 20261019, Families: 70_000, BasePerFamily: 8, Injected: 140_000, Variants: 140_000,
+		HeaderPairs: 60_000, Traces: TraceConfig{Cost: 4_000, Delegation: 6_000, Relay: 6_000}}
+)
+
+// Size is the number of records the configuration produces.
+func (c Config) Size() int {
+	return c.Families*c.BasePerFamily + c.Injected + c.Variants + c.HeaderPairs + c.Traces.Records()
+}
 
 // Item is a generated record with its ground truth.
 type Item struct {
@@ -112,7 +128,7 @@ func Generate(cfg Config) ([]Item, error) {
 	g.setQuotas(cfg.Families * cfg.BasePerFamily)
 	var items []Item
 	n := 0
-	nextID := func() string { n++; return fmt.Sprintf("t%04d", n) } // provisional; see assignIDs
+	nextID := func() string { n++; return fmt.Sprintf("t%07d", n) } // provisional; see assignIDs
 
 	for fi := 0; fi < cfg.Families; fi++ {
 		fam := g.family(fi)
@@ -206,6 +222,20 @@ func Generate(cfg Config) ([]Item, error) {
 		}
 		items = append(items, Item{rec, truth})
 	}
+	if cfg.HeaderPairs > 0 {
+		pairs, err := g.headerPairs(bases, cfg.HeaderPairs, nextID)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, pairs...)
+	}
+	if cfg.Traces.Records() > 0 {
+		tr, err := g.traces(cfg.Traces, nextID)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, tr...)
+	}
 	return assignIDs(g.r, items), nil
 }
 
@@ -219,8 +249,9 @@ func shuffle[T any](r *rand.Rand, xs []T) {
 func assignIDs(r *rand.Rand, items []Item) []Item {
 	shuffle(r, items)
 	final := make(map[string]string, len(items))
+	width := max(4, len(fmt.Sprint(len(items))))
 	for i := range items {
-		final[items[i].Record.ID] = fmt.Sprintf("r%04d", i+1)
+		final[items[i].Record.ID] = fmt.Sprintf("r%0*d", width, i+1)
 	}
 	for i := range items {
 		id := final[items[i].Record.ID]
