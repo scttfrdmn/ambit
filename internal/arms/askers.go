@@ -35,11 +35,24 @@ func (j *Jeb) Ask(ctx context.Context, state, prop string) (Reply, error) {
 	return Reply{P: a.P(), ServedModel: j.ID(), Date: time.Now().UTC().Format("2006-01-02"), Raw: raw}, nil
 }
 
-// Hosted asks OpenAI Decisions a predicate and logs the spend.
+// Hosted asks OpenAI Decisions a predicate and logs the spend. It is safe
+// for concurrent use; the spend log names the record from WithRecord.
 type Hosted struct {
 	C *hosted.Client
-	// Record names the record being decided, for the spend log.
-	Record string
+}
+
+type recordKey struct{}
+
+// WithRecord labels ctx with the ID of the record being decided, for the
+// spend log.
+func WithRecord(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, recordKey{}, id)
+}
+
+// RecordOf returns the record ID set by WithRecord, or "".
+func RecordOf(ctx context.Context) string {
+	id, _ := ctx.Value(recordKey{}).(string)
+	return id
 }
 
 // ID names the requested model.
@@ -51,7 +64,7 @@ func (h *Hosted) Ask(ctx context.Context, state, prop string) (Reply, error) {
 	rep := Reply{P: a.P, Refused: a.Refused, ServedModel: a.ServedModel, Date: a.Date,
 		InputTokens: a.InputTokens, CostMicros: a.CostMicros, Raw: a.Raw}
 	if a.ServedModel != "" {
-		if lerr := h.C.Ledger.Log(a, h.Record); lerr != nil && err == nil {
+		if lerr := h.C.Ledger.Log(a, RecordOf(ctx)); lerr != nil && err == nil {
 			err = lerr
 		}
 	}

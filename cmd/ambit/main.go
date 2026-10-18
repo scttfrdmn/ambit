@@ -2,7 +2,8 @@
 //
 //	ambit corpus [-dir corpus]
 //	ambit verify [-dir corpus]
-//	ambit run -arm b0|b|b-hosted|a-local|a-hosted [-limit n] [-llama url]
+//	ambit run -arm b0|b|b-4b|b-hosted|a-local|a-hosted [-offset n] [-limit n]
+//	          [-concurrency n] [-cache-prompt] [-ablation failclosed] [-name s] [-llama url]
 //	ambit report [-results results]
 //	ambit state <record-id>   print the Arm A serialized state
 package main

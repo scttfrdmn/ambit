@@ -2,7 +2,10 @@ package jeb
 
 import (
 	"context"
+	"encoding/json"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 )
@@ -12,6 +15,37 @@ func TestOptionLabel(t *testing.T) {
 		if got := OptionLabel(i); got != want {
 			t.Errorf("OptionLabel(%d) = %s, want %s", i, got, want)
 		}
+	}
+}
+
+// TestCachePrompt checks that the flag reaches the /completion body and
+// defaults to off (G1).
+func TestCachePrompt(t *testing.T) {
+	var got []bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			CachePrompt *bool `json:"cache_prompt"`
+		}
+		json.NewDecoder(r.Body).Decode(&body)
+		if body.CachePrompt == nil {
+			t.Error("cache_prompt missing")
+		} else {
+			got = append(got, *body.CachePrompt)
+		}
+		w.Write([]byte(`{"completion_probabilities":[{"top_logprobs":[{"id":1,"logprob":-0.1},{"id":2,"logprob":-2.3}]}]}`))
+	}))
+	defer srv.Close()
+	c := &Client{URL: srv.URL, HTTP: srv.Client(), labels: []int{1, 2}}
+	q := Question{Type: "noul", Instructions: "q"}
+	if _, err := c.Ask(context.Background(), "s", q); err != nil {
+		t.Fatal(err)
+	}
+	c.CachePrompt = true
+	if _, err := c.Ask(context.Background(), "s", q); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0] || !got[1] {
+		t.Fatalf("cache_prompt sent %v, want [false true]", got)
 	}
 }
 
