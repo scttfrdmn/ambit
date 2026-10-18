@@ -74,9 +74,12 @@ if needs_llama; then
 	sudo systemctl restart docker
 	log "fetching jebadiah"
 	curl -fsSL -o jeb.gguf "$JEB_URL" && echo "$JEB_SHA  jeb.gguf" | sha256sum -c --quiet || { log "jebadiah fetch or hash failed"; push; exit 4; }
-	# 8 slots x 4096 tokens: every Arm A state fits (max 1,748 tokens in G1).
+	# One slot per concurrent request, 4096 tokens each: every Arm A state
+	# fits (max 1,748 tokens in G1).
+	NP=8
+	for ((i = 0; i < ${#EXTRA[@]}; i++)); do [ "${EXTRA[$i]}" = -concurrency ] && NP="${EXTRA[$((i + 1))]}"; done
 	sudo docker run -d --gpus all --name llama -p 127.0.0.1:8080:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
-		-m /models/jeb.gguf -c 32768 -np 8 -ngl 999 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
+		-m /models/jeb.gguf -c $((NP * 4096)) -np "$NP" -ngl 999 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
 	( sudo docker logs -f llama >"$W/llama.log" 2>&1 ) &
 	wait_health http://127.0.0.1:8080 || { log "llama-server did not come up"; push; exit 5; }
 	log "llama-server up"

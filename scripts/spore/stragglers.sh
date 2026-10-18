@@ -4,6 +4,12 @@
 set -uo pipefail
 found=0
 # Any state but terminated counts: pending and stopping instances still cost.
+# An instance that is shutting down gets up to five minutes to finish.
+for _ in 1 2 3 4 5 6; do
+	listing=$(spawn list --tag project=ambit --state all -o json 2>/dev/null) || break
+	echo "$listing" | jq -e '[.[] | select((.state // .State // "") | ascii_downcase == "shutting-down")] | length == 0' >/dev/null && break
+	sleep 50
+done
 if ! listing=$(spawn list --tag project=ambit --state all -o json 2>/dev/null); then
 	echo "spawn list failed; cannot confirm there are no stragglers" >&2
 	exit 2

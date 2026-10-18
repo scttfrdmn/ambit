@@ -117,12 +117,18 @@ type Health struct {
 	Temperature json.RawMessage `json:"temperature"`
 }
 
-// Client talks to one strands-decider server, one request at a time.
+// Client talks to one strands-decider server. By default it sends one
+// request at a time: strands-decider aborts on concurrent requests on Apple
+// Silicon, and releases before 930e6d5d also returned wrong probabilities
+// under concurrency on CUDA. Concurrent lets a Linux CUDA server at the
+// pinned commit batch requests; its equivalence with serial requests is
+// checked before use (registration #33).
 type Client struct {
-	URL    string
-	HTTP   *http.Client
-	Health Health
-	mu     sync.Mutex
+	URL        string
+	HTTP       *http.Client
+	Health     Health
+	Concurrent bool
+	mu         sync.Mutex
 }
 
 // New connects and checks the server's health.
@@ -178,11 +184,15 @@ func (c *Client) Ask(ctx context.Context, state string, questions map[string]Que
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	c.mu.Lock()
+	if !c.Concurrent {
+		c.mu.Lock()
+	}
 	start := time.Now()
 	data, err := c.do(req)
 	elapsed := time.Since(start)
-	c.mu.Unlock()
+	if !c.Concurrent {
+		c.mu.Unlock()
+	}
 
 	var r Response
 	if json.Valid(data) {

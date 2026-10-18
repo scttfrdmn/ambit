@@ -44,6 +44,7 @@ func cmdRun(args []string) error {
 	name := fs.String("name", "", "arm and run name (default: the arm, plus -ablation if any)")
 	llama := fs.String("llama", "http://127.0.0.1:8080", "llama-server serving the pinned Jebadiah GGUF")
 	ceiling := fs.Float64("ceiling", 200, "hosted spend ceiling in dollars for this results directory's ledger (G1 $200, G2 $300, G3 $500)")
+	strandsConcurrent := fs.Bool("strands-concurrent", false, "send strands-decider requests concurrently (Linux CUDA only; see internal/strands)")
 	strandsURL := fs.String("strands", "http://127.0.0.1:8000", "strands-decider serve, with the pinned hobson-v21 checkpoint")
 	fs.Parse(args)
 
@@ -102,6 +103,10 @@ func cmdRun(args []string) error {
 		if err != nil {
 			return nil, fmt.Errorf("strands-decider at %s: %w", *strandsURL, err)
 		}
+		if *strandsConcurrent && c.Health.Device != "cuda" {
+			return nil, fmt.Errorf("-strands-concurrent needs a CUDA server; this one is on %q", c.Health.Device)
+		}
+		c.Concurrent = *strandsConcurrent
 		opt.Models["strands"] = strands.HobsonV21.ID() + " base " + strands.HobsonV21.BaseRepo + "@" + strands.HobsonV21.BaseRevision +
 			" server " + strands.HobsonV21.Server
 		return c, nil
