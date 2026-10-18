@@ -48,6 +48,11 @@ func TestAskAndLedger(t *testing.T) {
 	if err := l.Log(a, "r0001"); err != nil {
 		t.Fatal(err)
 	}
+	// A second ledger on the same log is refused while the first is open.
+	if _, err := OpenLedger(log, "run1b", 5_000_000, 200_000_000); err == nil || !strings.Contains(err.Error(), "in use") {
+		t.Fatalf("want a concurrent-ledger refusal, got %v", err)
+	}
+	l.Close()
 	// The log carries into the next run's project total.
 	l2, err := OpenLedger(log, "run2", 5_000_000, 200)
 	if err != nil {

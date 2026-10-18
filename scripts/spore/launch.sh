@@ -17,8 +17,9 @@ set -euo pipefail
 NAME="$1"; CORPUS="$2"; RUNS="$3"; TTL="$4"; LIMIT="$5"
 [ -s "$RUNS" ] || { echo "runs file $RUNS is empty or missing" >&2; exit 1; }
 # Law 6: $20 per run on AWS. spored enforces --cost-limit on the instance.
-if ! [[ "$LIMIT" =~ ^[0-9]+(\.[0-9]+)?$ ]] || awk "BEGIN{exit !($LIMIT > 20)}"; then
-	echo "cost limit must be a number no greater than 20 (Law 6), got '$LIMIT'" >&2
+# spawn reads a cost limit of 0 as "no limit", so 0 is refused too.
+if ! [[ "$LIMIT" =~ ^[0-9]+(\.[0-9]+)?$ ]] || awk "BEGIN{exit !($LIMIT > 20 || $LIMIT <= 0)}"; then
+	echo "cost limit must be a number above 0 and no greater than 20 (Law 6), got '$LIMIT'" >&2
 	exit 1
 fi
 [ -n "$TTL" ] || { echo "a TTL is required" >&2; exit 1; }
@@ -62,4 +63,8 @@ spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"$
 	--volume-size 80 --tag project=ambit --tag "run=$NAME" \
 	--s3-read "$BUCKET" --s3-write "$BUCKET" \
 	--command "$CMD" -y
-echo "staged at $STAGE; logs at $STAGE/out/<host>/job.log"
+# Local backstop: terminate the instance through the EC2 API 15 minutes past
+# its TTL if it is still alive (see deadman.sh).
+mkdir -p "$HOME/.xtmp/ambit-logs"
+nohup "$ROOT/scripts/spore/deadman.sh" "$NAME" "$REGION" "$TTL" >"$HOME/.xtmp/ambit-logs/deadman-$NAME.log" 2>&1 &
+echo "staged at $STAGE; logs at $STAGE/out/<host>/job.log; dead-man watcher pid $!"

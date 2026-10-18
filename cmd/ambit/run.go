@@ -35,7 +35,7 @@ var ablations = map[string]func(string) (string, error){
 
 func cmdRun(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
-	arm := fs.String("arm", "b0", "b0 | b | b-4b | b-hosted | a-local | a-hosted")
+	arm := fs.String("arm", "b0", "b0 | b | b-4b | b-hosted | b-strands | a-local | a-hosted | a-strands")
 	dir := fs.String("dir", "corpus", "corpus directory")
 	results := fs.String("results", "results", "results directory")
 	offset := fs.Int("offset", 0, "skip the first n records (a shard's start)")
@@ -119,8 +119,11 @@ func cmdRun(args []string) error {
 			return nil, fmt.Errorf("-strands-concurrent needs a CUDA server; this one is on %q", c.Health.Device)
 		}
 		c.Concurrent = *strandsConcurrent
+		// The pin, and what the server itself says it loaded.
 		opt.Models["strands"] = strands.HobsonV21.ID() + " base " + strands.HobsonV21.BaseRepo + "@" + strands.HobsonV21.BaseRevision +
 			" server " + strands.HobsonV21.Server
+		opt.Models["strands_server_reports"] = fmt.Sprintf("model %s checkpoint %s base %s device %s",
+			c.Health.Model, c.Health.Checkpoint, c.Health.BaseModel, c.Health.Device)
 		return c, nil
 	}
 	remote := func() (*arms.Hosted, error) {
@@ -224,7 +227,7 @@ func erroredRecords(dirs []string, arm string) (map[string]bool, []string, error
 		}
 		runs = append(runs, m.Run)
 		err = corpus.Each(d, "decisions", func(dec arms.Decision) error {
-			if dec.Error != "" {
+			if run.Repairable(dec.Error) {
 				ids[dec.ID] = true
 			}
 			return nil

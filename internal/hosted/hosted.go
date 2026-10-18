@@ -150,8 +150,11 @@ func (c *Client) Ask(ctx context.Context, state, instructions string) (Answer, e
 	raw := res.raw
 	var r response
 	if err := json.Unmarshal(raw, &r); err != nil {
-		c.Ledger.Release(est)
-		return Answer{Raw: raw, Attempts: attempts}, fmt.Errorf("decisions API: decode: %w", err)
+		// A 200 is billed even if its body cannot be read. Charge the
+		// estimate, which is conservative, and mark the call so it is logged.
+		c.Ledger.Settle(est, est)
+		return Answer{Raw: raw, Attempts: attempts, ServedModel: "unknown (undecodable 200)", CostMicros: est,
+			Date: start.UTC().Format("2006-01-02")}, fmt.Errorf("decisions API: decode: %w", err)
 	}
 	a := Answer{
 		ServedModel: r.Model, InputTokens: r.Usage.InputTokens, CostMicros: Cost(r.Usage.InputTokens),

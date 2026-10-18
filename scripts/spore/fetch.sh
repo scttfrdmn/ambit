@@ -5,9 +5,16 @@
 set -euo pipefail
 NAME="$1"
 DEST="${2:-$HOME/.xtmp/ambit-results}"
-REGION="${AMBIT_REGION:-us-west-2}"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-STAGE="s3://spawn-results-$ACCOUNT-$REGION/ambit/$NAME"
+# The run was staged in the region it launched in; find it.
+STAGE=""
+for REGION in ${AMBIT_REGION:-us-east-1 us-west-2}; do
+	if aws s3 ls "s3://spawn-results-$ACCOUNT-$REGION/ambit/$NAME/" >/dev/null 2>&1; then
+		STAGE="s3://spawn-results-$ACCOUNT-$REGION/ambit/$NAME"
+		break
+	fi
+done
+[ -n "$STAGE" ] || { echo "no staged run $NAME" >&2; exit 1; }
 mkdir -p "$DEST/spore-logs/$NAME"
 for host in $(aws s3 ls "$STAGE/out/" | awk '/PRE/{print $2}' | tr -d /); do
 	aws s3 sync "$STAGE/out/$host/results" "$DEST" --quiet

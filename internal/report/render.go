@@ -145,26 +145,33 @@ func Build(c *Corpus, l *Loaded, opt Options) (string, map[string]any, error) {
 		w("- Law 2: %d/%d relay-trace hops, each carrying an injection, deny under the oracle.\n", c.relayDeny, c.relay)
 		laws["law2_relay_hops"] = [2]int{c.relayDeny, c.relay}
 	}
+	// Law 3 pairs arms that receive the same serializer's bytes: A-local with
+	// A-hosted, and the two prose-ablation arms with each other. A-strands
+	// reads a different layout carrying the same information (checked by
+	// serialize.TestStrandsStateCarriesState), so it is noted, not compared.
 	law3 := false
-	if la := l.Arms["a-local"]; la != nil && la.state != nil {
-		for _, a := range present {
-			x := l.Arms[a]
-			if a == "a-local" || x.state == nil || x.Derived != "" {
-				continue
+	for _, pair := range [][2]string{{"a-local", "a-hosted"}, {"a-local-ablation", "a-hosted-ablation"}} {
+		x, y := l.Arms[pair[0]], l.Arms[pair[1]]
+		if x == nil || y == nil || x.state == nil || y.state == nil {
+			continue
+		}
+		same := 0
+		for i, h := range x.state {
+			if h != 0 && h == y.state[i] {
+				same++
 			}
-			same := 0
-			for i, h := range la.state {
-				if h != 0 && h == x.state[i] {
-					same++
-				}
-			}
-			w("- Law 3: A-local and %s received byte-identical state on %d/%d records (SHA-256 per record).\n", title(a), same, c.Len())
-			laws["law3_same_state/a-local/"+a] = [2]int{same, c.Len()}
-			law3 = true
+		}
+		w("- Law 3: %s and %s received byte-identical state on %d/%d records (SHA-256 per record).\n", title(pair[0]), title(pair[1]), same, c.Len())
+		laws["law3_same_state/"+pair[0]+"/"+pair[1]] = [2]int{same, c.Len()}
+		law3 = true
+	}
+	for _, a := range []string{"a-strands", "a-strands-ablation"} {
+		if l.Arms[a] != nil {
+			w("- Law 3: %s reads the strands hook layout (serialize.StrandsState), which carries the same information as the shared state in a different layout; the test serialize.TestStrandsStateCarriesState checks this on the G0 records.\n", title(a))
 		}
 	}
 	if !law3 {
-		w("- Law 3: state hashes are recorded per record; the cross-model check needs both A-local and A-hosted runs.\n")
+		w("- Law 3: state hashes are recorded per record; the cross-model check needs both arms of a pair (A-local with A-hosted, or the two ablations).\n")
 	}
 
 	data["laws"] = laws

@@ -1,10 +1,12 @@
 // Command ambit generates the corpus, runs arms over it, and reports.
 //
-//	ambit corpus [-dir corpus]
+//	ambit corpus [-config g0|g2a|g2b] [-dir dir]
 //	ambit verify [-dir corpus]
-//	ambit run -arm b0|b|b-4b|b-hosted|a-local|a-hosted [-offset n] [-limit n]
-//	          [-concurrency n] [-cache-prompt] [-ablation failclosed] [-name s] [-llama url]
-//	ambit report [-results results]
+//	ambit run -arm b0|b|b-4b|b-hosted|b-strands|a-local|a-hosted|a-strands
+//	          [-dir corpus] [-results dir] [-offset n] [-limit n] [-concurrency n]
+//	          [-cache-prompt] [-ablation failclosed] [-name s] [-ceiling dollars]
+//	          [-repair run-dirs] [-llama url] [-strands url] [-strands-concurrent]
+//	ambit report [-dir corpus] [-results dir] [-out dir] [-resamples n]
 //	ambit state <record-id>   print the Arm A serialized state
 package main
 

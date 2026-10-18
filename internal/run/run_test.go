@@ -196,3 +196,20 @@ func TestRunBadRange(t *testing.T) {
 		t.Fatal("want error for an offset past the corpus")
 	}
 }
+
+func TestRepairable(t *testing.T) {
+	for e, want := range map[string]bool{
+		"": false,
+		`decisions API: 429 Too Many Requests: {"error":{"message":"Rate limit reached"}}`:                true,
+		`decisions API: 429 Too Many Requests: {"error":{"type":"insufficient_quota"}}`:                   false,
+		`decisions API: 503 Service Unavailable: overloaded`:                                              true,
+		`Post "https://api.openai.com/v1/decisions": context deadline exceeded (Client.Timeout exceeded)`: true,
+		`decisions API: 1 answers expected, got 2`:                                                        false,
+		`decisions API: 401 Unauthorized`:                                                                 false,
+		`strands: question gate: noul 1.2 out of range`:                                                   false,
+	} {
+		if got := Repairable(e); got != want {
+			t.Errorf("Repairable(%q) = %v, want %v", e, got, want)
+		}
+	}
+}

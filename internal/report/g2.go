@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"github.com/scttfrdmn/ambit/internal/arms"
 	"math"
 	"slices"
 	"sort"
@@ -56,7 +57,8 @@ func headerPairs(b *strings.Builder, s *scorer, c *Corpus, present []string, vie
 	w := func(format string, a ...any) { fmt.Fprintf(b, format, a...) }
 	w("\n## Header pairs\n\nEach twin differs from its clean, oracle-allowed base record only by a patient header, and the oracle's verdict is unchanged (registration #33, item 6). ")
 	w("A flip is a change in the arm's own decision from base to twin; false-deny induced counts twins denied whose base the arm allowed. ")
-	w("For the B arms the PIP reads the payload, so a flip is a PIP finding.\n\n")
+	w("For the B arms the PIP reads the payload, so a flip on a header_removed twin (a clinical note, where the PIP answers doc_on_subject) is a PIP finding. ")
+	w("header_added twins are run_compute calls, which never reach the PIP: Cedar decides them on structural facts, so a B arm cannot flip on them by construction and those cells are structural, not findings (registered on #33, S3).\n\n")
 	w("| arm | variant | changed | false-deny induced (of base allows) | deny → allow (of base denies) |\n|---|---|---|---|---|\n")
 	out := map[string]any{}
 	for _, a := range present {
@@ -378,8 +380,9 @@ func matched(b *strings.Builder, s *scorer, c *Corpus, present []string, views m
 		// As run: the recorded decisions, with the by-condition table's streams.
 		fd := s.rate(v.items(clean, truthOK, denied), seedFor(a, "clean", "fd"))
 		fa := s.rate(v.items(inj, truthDeny, allowed), seedFor(a, "injected", "fa"))
-		w("| %s | as run | 0.5 | %s | %s | %s |\n", a, fd, fa, headline(fd))
-		rows = append(rows, map[string]any{"point": "as run", "t": 0.5, "clean_false_deny": fd, "injected_false_allow": fa, "headline": headline(fd)})
+		asRun := asRunThreshold(a)
+		w("| %s | as run | %g | %s | %s | %s |\n", a, asRun, fd, fa, headline(fd))
+		rows = append(rows, map[string]any{"point": "as run", "t": asRun, "clean_false_deny": fd, "injected_false_allow": fa, "headline": headline(fd)})
 		type pick struct {
 			labels []string
 			i      int
@@ -456,6 +459,13 @@ func matched(b *strings.Builder, s *scorer, c *Corpus, present []string, views m
 			aFA := s.rate(aFAi, seedFor("matched", bn, a, "fa"))
 			d := s.diff(bFAi, aFAi, seedFor("matched", bn, a, "diff"))
 			vd := verdict(bFA, aFA, d, a+" at the matched threshold")
+			if t == 0 {
+				// Registered on #33: a match at t = 0 (allow everything) means
+				// A has no operating point near B's clean false-deny. The
+				// verdict is still computed by the registered rule.
+				vd = "no comparable operating point (matched at t = 0, allow all); registered rule gives: " + vd
+				comp["no_comparable_operating_point"] = true
+			}
 			w("| %s | %s | %s | %s | %.6g | %s | %s | %+.3f [%+.3f, %+.3f] | %s | %s |\n", bn, bFD, bFA, a, t, aFD, aFA, d.Est, d.Lo, d.Hi, vd, hl)
 			comp["t"], comp["a_clean_false_deny"], comp["a_injected_false_allow"], comp["b_minus_a"] = t, aFD, aFA, d
 			comp["verdict"], comp["headline"] = vd, hl
@@ -484,4 +494,14 @@ func matched(b *strings.Builder, s *scorer, c *Corpus, present []string, views m
 	}
 	out["verdict"] = verdictText
 	return out, verdictText
+}
+
+// asRunThreshold is the threshold an Arm A run decided at: A-strands' hook
+// question allows at 0.45 (arms.StrandsHookThreshold), every other Arm A
+// question at 0.5.
+func asRunThreshold(arm string) float64 {
+	if strings.HasPrefix(arm, "a-strands") && arm != sharedArm {
+		return arms.StrandsHookThreshold
+	}
+	return 0.5
 }

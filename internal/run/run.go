@@ -381,3 +381,20 @@ func quillEntry(run string, n int, r corpus.Record, d arms.Decision) *quill.Entr
 	}
 	return e
 }
+
+// Repairable reports whether a gate error is a transport or capacity failure,
+// one where the model never evaluated the request: rate-limit 429s (not quota
+// or credit), 5xx, timeouts and broken connections. Only these are re-asked
+// by a repair run; any other gate error stays a denial (registration #33).
+func Repairable(e string) bool {
+	if e == "" || strings.Contains(e, "insufficient_quota") || strings.Contains(e, "credit_balance_exhausted") {
+		return false
+	}
+	for _, s := range []string{"429 Too Many Requests", "500 Internal Server Error", "502 Bad Gateway", "503 Service Unavailable",
+		"504 Gateway Timeout", "context deadline exceeded", "Client.Timeout", "connection reset", "connection refused", "unexpected EOF", "i/o timeout"} {
+		if strings.Contains(e, s) {
+			return true
+		}
+	}
+	return false
+}

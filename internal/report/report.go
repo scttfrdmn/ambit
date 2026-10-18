@@ -450,6 +450,10 @@ func Load(dir string, c *Corpus) (*Loaded, error) {
 			l.Unscored = append(l.Unscored, fmt.Sprintf("arm %s is incomplete: its complete runs cover %d/%d records (%.1f%%); not scored", name, covered, n, 100*float64(covered)/float64(n)))
 			continue
 		}
+		if why := inconsistent(set); why != "" {
+			l.Unscored = append(l.Unscored, fmt.Sprintf("arm %s is not scored: its runs %s", name, why))
+			continue
+		}
 		a := &Arm{Name: name, decs: make([]dec, n), errs: map[int32]string{}, served: map[string]bool{}}
 		for _, s := range set {
 			a.Runs = append(a.Runs, s.m)
@@ -609,7 +613,7 @@ func applyRepairs(c *Corpus, a *Arm, repairs []span) error {
 			if !ok {
 				return fmt.Errorf("repair run %s decided %s, which is not in the corpus", s.m.Run, d.ID)
 			}
-			if _, errored := a.errs[i]; !errored || d.Error != "" {
+			if e, errored := a.errs[i]; !errored || !run.Repairable(e) || d.Error != "" {
 				return nil
 			}
 			a.decs[i] = toDec(d)
@@ -959,4 +963,30 @@ func (v view) flips(idx []int32, keep func(t *rec) bool) (changed, toAllow []ite
 		}
 	}
 	return changed, toAllow
+}
+
+// inconsistent reports how the runs merged into one arm differ in what was
+// run (policy prose, prose ablation, models), or "" if they agree. A
+// mis-named run would otherwise merge silently into the wrong arm.
+func inconsistent(set []span) string {
+	first := set[0].m
+	models := func(m Manifest) string {
+		var ks []string
+		for k, v := range m.Models {
+			ks = append(ks, k+"="+v)
+		}
+		sort.Strings(ks)
+		return strings.Join(ks, ";")
+	}
+	for _, s := range set[1:] {
+		switch {
+		case s.m.ProseSHA256 != first.ProseSHA256:
+			return fmt.Sprintf("%s and %s read different policy prose", first.Run, s.m.Run)
+		case string(s.m.Ablation) != string(first.Ablation):
+			return fmt.Sprintf("%s and %s ran different prose ablations", first.Run, s.m.Run)
+		case models(s.m) != models(first):
+			return fmt.Sprintf("%s and %s used different models", first.Run, s.m.Run)
+		}
+	}
+	return ""
 }

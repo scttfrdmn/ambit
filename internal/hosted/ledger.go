@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -14,15 +16,17 @@ import (
 // after it, Settle replaces the estimate with the billed cost and appends a
 // line to the spend log. The project total is the sum of the log.
 type Ledger struct {
-	mu          sync.Mutex
-	path        string
-	run         string
-	runCap      int64
-	projectCap  int64
-	runSpent    int64
-	priorSpent  int64
-	pending     int64
-	Calls       int64
+	mu         sync.Mutex
+	path       string
+	run        string
+	runCap     int64
+	projectCap int64
+	runSpent   int64
+	priorSpent int64
+	pending    int64
+	Calls      int64
+	// lock is held open for the process's lifetime (see OpenLedger).
+	lock        *os.File
 	InputTokens int64
 }
 
@@ -41,8 +45,23 @@ type Entry struct {
 
 // OpenLedger reads the spend log at path (which may not exist yet) and
 // returns a ledger for one run.
+//
+// The ledger holds an exclusive lock on <path>.lock for the life of the
+// process, so a second hosted run against the same ledger fails at once
+// instead of spending past a ceiling it cannot see.
 func OpenLedger(path, run string, runCapMicros, projectCapMicros int64) (*Ledger, error) {
-	l := &Ledger{path: path, run: run, runCap: runCapMicros, projectCap: projectCapMicros}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
+	lf, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(lf.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		lf.Close()
+		return nil, fmt.Errorf("spend ledger %s is in use by another hosted run; run hosted shards one at a time", path)
+	}
+	l := &Ledger{path: path, run: run, runCap: runCapMicros, projectCap: projectCapMicros, lock: lf}
 	data, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
@@ -118,4 +137,14 @@ func (l *Ledger) RunSpent() int64 {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.runSpent
+}
+
+// Close releases the ledger's lock.
+func (l *Ledger) Close() error {
+	if l.lock == nil {
+		return nil
+	}
+	err := l.lock.Close()
+	l.lock = nil
+	return err
 }
