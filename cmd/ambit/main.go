@@ -2,6 +2,9 @@
 //
 //	ambit corpus [-dir corpus]
 //	ambit verify [-dir corpus]
+//	ambit run -arm b0|b|b-hosted|a-local|a-hosted [-limit n] [-llama url]
+//	ambit report [-results results]
+//	ambit state <record-id>   print the Arm A serialized state
 package main
 
 import (
@@ -18,7 +21,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: ambit corpus|verify [flags]")
+		fmt.Fprintln(os.Stderr, "usage: ambit corpus|verify|run|report [flags]")
 		os.Exit(2)
 	}
 	var err error
@@ -27,6 +30,12 @@ func main() {
 		err = cmdCorpus(os.Args[2:])
 	case "verify":
 		err = cmdVerify(os.Args[2:])
+	case "run":
+		err = cmdRun(os.Args[2:])
+	case "report":
+		err = cmdReport(os.Args[2:])
+	case "state":
+		err = cmdState(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
