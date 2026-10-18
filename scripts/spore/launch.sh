@@ -54,5 +54,6 @@ PURCHASE=(--spot)
 spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
 	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate \
 	--volume-size 80 --tag project=ambit --tag "run=$NAME" \
+	--s3-read "$BUCKET" --s3-write "$BUCKET" \
 	--command "$CMD" -y
 echo "staged at $STAGE; logs at $STAGE/out/<host>/job.log"

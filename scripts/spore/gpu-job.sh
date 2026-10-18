@@ -32,7 +32,7 @@ push() {
 PUSHER=$!
 # On any exit, stop the background jobs and push what there is, so the
 # instance completes instead of idling until its TTL.
-trap 'kill $PUSHER 2>/dev/null; docker rm -f llama >/dev/null 2>&1; pkill -f "strands-decider serve" 2>/dev/null; push' EXIT
+trap 'kill $PUSHER 2>/dev/null; sudo docker rm -f llama >/dev/null 2>&1; pkill -f "strands-decider serve" 2>/dev/null; push' EXIT
 
 log "host $(hostname); arms: $ARMS; extra: ${EXTRA[*]:-}"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader | tee -a "$LOG"
@@ -62,12 +62,22 @@ wait_health() {
 }
 
 if needs_llama; then
+	# A --command instance has no Docker; install it and NVIDIA's container
+	# toolkit if the AMI lacks them.
+	if ! command -v docker >/dev/null; then sudo dnf install -y -q docker >>"$LOG" 2>&1; fi
+	if ! command -v nvidia-ctk >/dev/null; then
+		curl -fsSL https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo |
+			sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo >/dev/null
+		sudo dnf install -y -q nvidia-container-toolkit >>"$LOG" 2>&1
+	fi
+	sudo nvidia-ctk runtime configure --runtime=docker >>"$LOG" 2>&1
+	sudo systemctl restart docker
 	log "fetching jebadiah"
 	curl -fsSL -o jeb.gguf "$JEB_URL" && echo "$JEB_SHA  jeb.gguf" | sha256sum -c --quiet || { log "jebadiah fetch or hash failed"; push; exit 4; }
 	# 8 slots x 4096 tokens: every Arm A state fits (max 1,748 tokens in G1).
-	docker run -d --gpus all --name llama -p 127.0.0.1:8080:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
+	sudo docker run -d --gpus all --name llama -p 127.0.0.1:8080:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
 		-m /models/jeb.gguf -c 32768 -np 8 -ngl 999 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
-	( docker logs -f llama >"$W/llama.log" 2>&1 ) &
+	( sudo docker logs -f llama >"$W/llama.log" 2>&1 ) &
 	wait_health http://127.0.0.1:8080 || { log "llama-server did not come up"; push; exit 5; }
 	log "llama-server up"
 fi
