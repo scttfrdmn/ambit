@@ -288,9 +288,15 @@ func isSpendStop(e string) bool {
 	return false
 }
 
+// gitState returns the commit and whether tracked files differ from it. On
+// a spore.host instance there is no repository; scripts/spore/launch.sh
+// refuses a dirty tree and ships the commit in a GIT_COMMIT file instead.
 func gitState() (string, bool) {
 	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
 	if err != nil {
+		if b, ferr := os.ReadFile("GIT_COMMIT"); ferr == nil {
+			return strings.TrimSpace(string(b)), false
+		}
 		return "unknown", true
 	}
 	st, _ := exec.Command("git", "status", "--porcelain", "--untracked-files=no").Output()

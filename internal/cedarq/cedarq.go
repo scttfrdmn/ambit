@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/scttfrdmn/ambit/internal/corpus"
 	"github.com/scttfrdmn/ambit/internal/lki/pdp"
@@ -98,5 +99,8 @@ func Evaluate(p *pdp.Policies, q pdp.Query) (pdp.Decision, error) {
 	if len(d.Diagnostics) > 0 {
 		return d, fmt.Errorf("cedar evaluation errors: %v", d.Diagnostics)
 	}
+	// cedar-go reports determining policies in map order; sort them so that
+	// decisions and quill entries are reproducible.
+	slices.Sort(d.DeterminingPolicies)
 	return d, nil
 }
