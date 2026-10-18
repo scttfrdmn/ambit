@@ -96,6 +96,15 @@ if needs_strands; then
 	uv venv --python 3.12 "$W/sd" >>"$LOG" 2>&1 && . "$W/sd/bin/activate"
 	uv pip install "torch==2.7.1" >>"$LOG" 2>&1
 	uv pip install "strands-decider @ git+https://github.com/strands-labs/strands-decider@930e6d5de16309be32579f5631a7369a3322140c" "huggingface_hub" >>"$LOG" 2>&1
+	# "#strands-cuda" in RUNS adds the package's optional CUDA kernels for the
+	# linear-attention layers (its cuda extra and causal-conv1d); without them
+	# it uses a slower PyTorch fallback.
+	if grep -q '^#strands-cuda' RUNS; then
+		export PATH="$PATH:/usr/local/cuda/bin"
+		uv pip install "strands-decider[cuda] @ git+https://github.com/strands-labs/strands-decider@930e6d5de16309be32579f5631a7369a3322140c" >>"$LOG" 2>&1 &&
+			uv pip install causal-conv1d --no-build-isolation >>"$LOG" 2>&1 &&
+			log "strands-decider cuda kernels installed" || log "strands-decider cuda kernels failed to install; using the fallback"
+	fi
 	hf download StrandsAgents/strands-decider-2B-hobson-v21 --revision 2b52a6235c1b8306bbfa30b00b9d4b74b63a39f5 --local-dir "$W/v21" >>"$LOG" 2>&1
 	( strands-decider serve "$W/v21" --host 127.0.0.1 --port 8000 --device cuda >"$W/strands.log" 2>&1 ) &
 	deactivate
@@ -105,7 +114,7 @@ fi
 
 rc=0
 while IFS= read -r line; do
-	[ -z "$line" ] && continue
+	case "$line" in "" | "#"*) continue ;; esac
 	log "run: $line"
 	read -r -a args <<<"$line"
 	./ambit run "${args[@]}" -results results >>"$LOG" 2>&1 </dev/null &
