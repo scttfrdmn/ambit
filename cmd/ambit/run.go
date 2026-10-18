@@ -21,11 +21,10 @@ import (
 	"github.com/scttfrdmn/ambit/internal/strands"
 )
 
-// Spend caps (Law 6), in micro-dollars.
-const (
-	runCapMicros     = 5_000_000
-	projectCapMicros = 200_000_000
-)
+// runCapMicros is the per-run hosted cap (Law 6). The project or gate
+// ceiling is the -ceiling flag, checked against the spend ledger in the
+// results directory: keep one results directory per gate.
+const runCapMicros = 5_000_000
 
 // ablations are the registered Arm A prose ablations.
 var ablations = map[string]func(string) (string, error){
@@ -44,6 +43,7 @@ func cmdRun(args []string) error {
 	ablation := fs.String("ablation", "", "Arm A prose ablation: failclosed")
 	name := fs.String("name", "", "arm and run name (default: the arm, plus -ablation if any)")
 	llama := fs.String("llama", "http://127.0.0.1:8080", "llama-server serving the pinned Jebadiah GGUF")
+	ceiling := fs.Float64("ceiling", 200, "hosted spend ceiling in dollars for this results directory's ledger (G1 $200, G2 $300, G3 $500)")
 	strandsURL := fs.String("strands", "http://127.0.0.1:8000", "strands-decider serve, with the pinned hobson-v21 checkpoint")
 	fs.Parse(args)
 
@@ -107,7 +107,7 @@ func cmdRun(args []string) error {
 		return c, nil
 	}
 	remote := func() (*arms.Hosted, error) {
-		l, err := hosted.OpenLedger(filepath.Join(*results, "spend.jsonl"), armName, runCapMicros, projectCapMicros)
+		l, err := hosted.OpenLedger(filepath.Join(*results, "spend.jsonl"), armName, runCapMicros, int64(*ceiling*1e6))
 		if err != nil {
 			return nil, err
 		}
