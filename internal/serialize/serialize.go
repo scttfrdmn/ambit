@@ -14,6 +14,10 @@
 //     keeps the tool's description, which identifies it unambiguously, and
 //     the state says so;
 //   - reviewer_note is already in the payload text.
+//
+// StrandsState (strands.go) renders the same information for Arm
+// A-strands, in the layout of strands-decider's before_tool_call hook
+// example; its doc comment gives the layout.
 package serialize
 
 import (
