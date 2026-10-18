@@ -1,0 +1,5 @@
+-arm a-local -dir corpus -limit 200 -concurrency 8 -cache-prompt -name probe-a-local-c8
+-arm a-local -dir corpus -limit 200 -concurrency 16 -cache-prompt -name probe-a-local-c16
+-arm a-strands -dir corpus -limit 200 -name probe-a-strands-serial
+-arm a-strands -dir corpus -limit 200 -concurrency 8 -strands-concurrent -name probe-a-strands-c8
+-arm a-strands -dir corpus -limit 200 -concurrency 16 -strands-concurrent -name probe-a-strands-c16

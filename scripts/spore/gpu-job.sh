@@ -1,10 +1,11 @@
 #!/bin/bash
 # Runs on a spore.host GPU instance (Deep Learning Base AMI, AL2023).
 #
-#   gpu-job.sh <stage-s3-prefix> "<arms>" [extra ambit run flags...]
+#   gpu-job.sh <stage-s3-prefix>
 #
-# Fetches the staged bundle (ambit binary + corpus), fetches the pinned model
-# weights, starts the model servers the arms need, runs each arm, and pushes
+# Fetches the staged bundle (ambit binary, corpus, and RUNS: one line of
+# `ambit run` arguments per run), fetches the pinned model weights, starts the
+# model servers the runs need, runs each line in order, and pushes
 # the log and results to <stage>/out/<host>/ every minute while it runs and
 # once at the end. No secrets are used or written. The exit code is ambit's
 # last non-zero exit, so spawn's --on-complete sees failures.
@@ -12,9 +13,6 @@ set +e
 set -u
 
 STAGE="$1"
-ARMS="$2"
-shift 2
-EXTRA=("$@")
 
 W=/work
 sudo mkdir -p "$W" && sudo chown "$(id -u):$(id -g)" "$W"
@@ -34,11 +32,16 @@ PUSHER=$!
 # instance completes instead of idling until its TTL.
 trap 'kill $PUSHER 2>/dev/null; sudo docker rm -f llama >/dev/null 2>&1; pkill -f "strands-decider serve" 2>/dev/null; push' EXIT
 
-log "host $(hostname); arms: $ARMS; extra: ${EXTRA[*]:-}"
+log "host $(hostname)"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader | tee -a "$LOG"
 
 aws s3 cp "$STAGE/bundle.tgz" "$W/bundle.tgz" --quiet && tar xzf bundle.tgz || { log "bundle fetch failed"; push; exit 3; }
 mkdir -p results
+log "runs:"; sed 's/^/  /' RUNS | tee -a "$LOG"
+ARMS=$(grep -oE -- '-arm [a-z0-9-]+' RUNS | awk '{print $2}' | sort -u | tr '\n' ' ')
+# One llama-server slot per concurrent request across the Jebadiah runs.
+NP=$(grep -E -- '-arm (a-local|b-4b|b)( |$)' RUNS | grep -oE -- '-concurrency [0-9]+' | awk '{print $2}' | sort -n | tail -1)
+NP=${NP:-1}
 
 # Jebadiah 4B v2, pinned (see internal/jeb.Jebadiah4BV2).
 JEB_URL=https://huggingface.co/frontier-infra/jebadiah-4b-v2-GGUF/resolve/446099f37ca1cea4324d8866b44a1dbc15f77c94/jebadiah-4b-v2-Q8_0.gguf
@@ -76,8 +79,6 @@ if needs_llama; then
 	curl -fsSL -o jeb.gguf "$JEB_URL" && echo "$JEB_SHA  jeb.gguf" | sha256sum -c --quiet || { log "jebadiah fetch or hash failed"; push; exit 4; }
 	# One slot per concurrent request, 4096 tokens each: every Arm A state
 	# fits (max 1,748 tokens in G1).
-	NP=8
-	for ((i = 0; i < ${#EXTRA[@]}; i++)); do [ "${EXTRA[$i]}" = -concurrency ] && NP="${EXTRA[$((i + 1))]}"; done
 	sudo docker run -d --gpus all --name llama -p 127.0.0.1:8080:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
 		-m /models/jeb.gguf -c $((NP * 4096)) -np "$NP" -ngl 999 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
 	( sudo docker logs -f llama >"$W/llama.log" 2>&1 ) &
@@ -101,13 +102,15 @@ if needs_strands; then
 fi
 
 rc=0
-for arm in $ARMS; do
-	log "run $arm"
-	./ambit run -arm "$arm" -results results "${EXTRA[@]}" >>"$LOG" 2>&1
+while IFS= read -r line; do
+	[ -z "$line" ] && continue
+	log "run: $line"
+	read -r -a args <<<"$line"
+	./ambit run "${args[@]}" -results results >>"$LOG" 2>&1 </dev/null
 	r=$?
-	log "run $arm exit $r"
+	log "exit $r: $line"
 	[ $r -ne 0 ] && rc=$r
-done
+done <RUNS
 
 log "done, exit $rc"
 exit $rc

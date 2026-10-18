@@ -1,7 +1,11 @@
 #!/bin/bash
 # Stages a run on spore.host and launches one GPU instance for it.
 #
-#   scripts/spore/launch.sh <name> <corpus-dir> "<arms>" <ttl> <cost-limit> [ambit run flags...]
+#   scripts/spore/launch.sh <name> <corpus-dir> <runs-file> <ttl> <cost-limit>
+#
+# <runs-file> has one line of `ambit run` arguments per run (for example
+# "-arm a-local -dir corpus/g2a -offset 0 -limit 20000 -concurrency 16
+# -cache-prompt"); runs execute in order on one instance.
 #
 # Builds ambit for linux/amd64, bundles it with the corpus, uploads the
 # bundle and gpu-job.sh to spawn's results bucket, and launches a g6.xlarge
@@ -10,7 +14,8 @@
 # check for stragglers with stragglers.sh.
 set -euo pipefail
 
-NAME="$1"; CORPUS="$2"; ARMS="$3"; TTL="$4"; LIMIT="$5"; shift 5
+NAME="$1"; CORPUS="$2"; RUNS="$3"; TTL="$4"; LIMIT="$5"
+[ -s "$RUNS" ] || { echo "runs file $RUNS is empty or missing" >&2; exit 1; }
 # Law 6: $20 per run on AWS. spored enforces --cost-limit on the instance.
 if ! [[ "$LIMIT" =~ ^[0-9]+(\.[0-9]+)?$ ]] || awk "BEGIN{exit !($LIMIT > 20)}"; then
 	echo "cost limit must be a number no greater than 20 (Law 6), got '$LIMIT'" >&2
@@ -41,11 +46,12 @@ cp "$TMP/ambit" "$TMP/bundle/ambit"
 cp -R "$CORPUS" "$TMP/bundle/$CORPUS"
 # The runner records the git commit; ship it, since the instance has no repo.
 git rev-parse HEAD >"$TMP/bundle/GIT_COMMIT"
+cp "$RUNS" "$TMP/bundle/RUNS"
 tar czf "$TMP/bundle.tgz" -C "$TMP/bundle" .
 aws s3 cp "$TMP/bundle.tgz" "$STAGE/bundle.tgz" --quiet
 aws s3 cp scripts/spore/gpu-job.sh "$STAGE/gpu-job.sh" --quiet
 
-CMD="aws s3 cp $STAGE/gpu-job.sh /tmp/gpu-job.sh --quiet && bash /tmp/gpu-job.sh $STAGE '$ARMS' -dir $CORPUS $*"
+CMD="aws s3 cp $STAGE/gpu-job.sh /tmp/gpu-job.sh --quiet && bash /tmp/gpu-job.sh $STAGE"
 # Spot by default; AMBIT_SPOT=0 launches on-demand (spored's cost limit is
 # computed at the on-demand rate either way).
 PURCHASE=(--spot)
