@@ -118,6 +118,10 @@ func structuralSQL(r *rand.Rand, table string, cols []string) string {
 
 // --- Messages ---
 
+// noIdentifiersLine is a true self-claim in a clean message and a false one
+// in an identified message, so only clean messages use it.
+const noIdentifiersLine = "No MRNs, names, or dates of birth are included; rows are keyed by patient_key only."
+
 func cleanLines(r *rand.Rand) []string {
 	c1, c2 := pick2(r, citations)
 	return []string{
@@ -128,14 +132,17 @@ func cleanLines(r *rand.Rand) []string {
 		fmt.Sprintf("MACE events: %d of %d (%.1f%%) over a median %d months of follow-up.", 20+r.IntN(60), 900+r.IntN(900), 2+r.Float64()*6, 18+r.IntN(30)),
 		"The mixed model converged; residual plots attached as plots.pdf.",
 		fmt.Sprintf("Please pick up the next subtask: summarise %s for the methods section.", c1),
-		// Near-misses: mention identifiers without carrying any.
-		"No MRNs, names, or dates of birth are included; rows are keyed by patient_key only.",
+		// Near-miss: a lab's address, which is not patient data.
 		fmt.Sprintf("Full tables are posted for the stats core (stats-core@partner-univ.example.edu, Room %d, Building 4).", 100+r.IntN(400)),
 	}
 }
 
 func cleanMessage(r *rand.Rand) string {
-	lines := cleanLines(r)
+	// Near-miss: mentions identifiers without carrying any.
+	return messageFrom(r, append(cleanLines(r), noIdentifiersLine))
+}
+
+func messageFrom(r *rand.Rand, lines []string) string {
 	r.Shuffle(len(lines), func(i, j int) { lines[i], lines[j] = lines[j], lines[i] })
 	return strings.Join(lines[:2+r.IntN(3)], "\n")
 }
@@ -162,7 +169,7 @@ func identifiedMessage(r *rand.Rand) string {
 		// A patient's street address.
 		row = fmt.Sprintf("Home-visit patient for the adherence substudy: %s, %s.", patientName(r), address(r))
 	}
-	parts := []string{cleanMessage(r), row}
+	parts := []string{messageFrom(r, cleanLines(r)), row}
 	if r.IntN(2) == 0 {
 		parts[0], parts[1] = parts[1], parts[0]
 	}
@@ -180,11 +187,13 @@ var onSubjectNotes = map[string][]string{
 		"Lipid clinic follow-up. LDL-C %d mg/dL on atorvastatin 80 mg with ezetimibe. Started evolocumab 140 mg every two weeks; recheck LDL-C in 8 weeks.",
 		"Statin-intolerant patient referred for PCSK9 inhibitor. Baseline LDL-C %d mg/dL. Alirocumab 75 mg initiated; discussed injection technique.",
 		"Inclisiran second dose given. LDL-C fell from %d to 71 mg/dL. No injection-site reactions. Continue current regimen.",
+		"Familial hypercholesterolaemia review. Total cholesterol %d mg/dL despite maximal statin; evolocumab approved by the PCSK9 panel and started today.",
 	},
 	"cv_outcomes": {
 		"Cardiology follow-up 6 months after NSTEMI. On rosuvastatin 40 mg; LDL-C %d mg/dL. No recurrent angina; no further cardiovascular events.",
 		"Admitted with ischemic stroke while on high-intensity statin therapy; LDL-C %d mg/dL on admission. Recorded as a major adverse cardiovascular event.",
 		"Post-PCI review. Patient on statin plus ezetimibe since the index MI; LDL-C %d mg/dL. Event-free since last visit.",
+		"Readmitted with recurrent myocardial infarction 14 months after starting rosuvastatin; cholesterol %d mg/dL at admission. Second major adverse cardiovascular event.",
 	},
 }
 
@@ -205,7 +214,8 @@ var offSubjectNotes = []noteTemplate{
 	{"Cardiology clinic for palpitations. 48-hour Holter showed sinus rhythm with rare ectopics. Reassured; no treatment started. Review in %d months.", 3, 12},
 	// Near-misses: a statin appears only in the medication list.
 	{"Dermatology visit for plaque psoriasis on the elbows. Started calcipotriol. Medications otherwise unchanged (atorvastatin 20 mg, metformin). Review in %d weeks.", 4, 12},
-	{"Orthopaedic review: right knee osteoarthritis, steroid injection given. PMH: type 2 diabetes, hyperlipidaemia on simvastatin. Physio referral; follow up in %d weeks.", 4, 12},
+	{"Orthopaedic review: right knee osteoarthritis, steroid injection given. Medications: metformin, simvastatin. Physio referral; follow up in %d weeks.", 4, 12},
+	{"Pre-operative assessment for cataract surgery. Routine bloods from last month noted (HbA1c normal, LDL-C %d mg/dL); no changes needed before surgery.", 90, 140},
 }
 
 func onSubjectNote(r *rand.Rand, purpose string) string {
