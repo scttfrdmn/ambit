@@ -108,12 +108,12 @@ func summarize(items []gen.Item) {
 		}
 	}
 	count("kind", func(it gen.Item) string {
-		k := it.Record.Kind
-		if it.Record.Injection != "" {
-			k += "/" + it.Record.Injection
+		k := it.Truth.Kind
+		if it.Truth.Injection != "" {
+			k += "/" + it.Truth.Injection
 		}
-		if it.Record.Variant != "" {
-			k += "/" + it.Record.Variant
+		if it.Truth.Variant != "" {
+			k += "/" + it.Truth.Variant
 		}
 		return k
 	})

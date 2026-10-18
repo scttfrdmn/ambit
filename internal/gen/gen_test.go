@@ -34,7 +34,7 @@ func TestSizeAndLaw2(t *testing.T) {
 		t.Fatalf("got %d records, want 1000", len(items))
 	}
 	for _, it := range items {
-		if it.Record.Kind == corpus.KindInjected && it.Truth.Verdict != corpus.Deny {
+		if it.Truth.Kind == corpus.KindInjected && it.Truth.Verdict != corpus.Deny {
 			t.Errorf("law 2: %s injected but %s", it.Record.ID, it.Truth.Verdict)
 		}
 	}

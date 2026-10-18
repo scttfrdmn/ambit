@@ -104,14 +104,12 @@ type Presentation struct {
 	OpaqueNames bool     `json:"opaque_names"`
 }
 
-// Record is one invocation, as a gate sees it.
+// Record is one invocation, as a gate sees it. It carries nothing about how
+// the experiment uses it: family, kind, base record, and injection or
+// variant labels are in Truth, and IDs are assigned after a shuffle so they
+// reveal nothing either.
 type Record struct {
 	ID           string       `json:"id"`
-	Family       string       `json:"family"`
-	Kind         string       `json:"kind"`
-	BaseID       string       `json:"base_id,omitempty"`
-	Variant      string       `json:"variant,omitempty"`
-	Injection    string       `json:"injection,omitempty"`
 	Task         string       `json:"task"`
 	Facts        Facts        `json:"facts"`
 	Payload      Payload      `json:"payload"`
@@ -140,9 +138,16 @@ const (
 	ClassOutside = "outside"
 )
 
-// Truth is the oracle's ground truth for one record.
+// Truth is the oracle's ground truth for one record, with the record's
+// design labels.
 type Truth struct {
-	ID string `json:"id"`
+	ID        string `json:"id"`
+	Family    string `json:"family"`
+	Scenario  string `json:"scenario"`
+	Kind      string `json:"kind"`
+	BaseID    string `json:"base_id,omitempty"`
+	Variant   string `json:"variant,omitempty"`
+	Injection string `json:"injection,omitempty"`
 	// Policy is the policy the record's scenario exercises (1–5), or 0 for
 	// outside-ambit records. Reports attribute by it.
 	Policy  int    `json:"policy"`

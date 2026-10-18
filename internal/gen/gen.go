@@ -105,7 +105,7 @@ func Generate(cfg Config) ([]Item, error) {
 	g := &generator{r: rand.New(rand.NewPCG(cfg.Seed, cfg.Seed^0x9e3779b97f4a7c15)), cfg: cfg}
 	var items []Item
 	n := 0
-	nextID := func() string { n++; return fmt.Sprintf("r%04d", n) }
+	nextID := func() string { n++; return fmt.Sprintf("t%04d", n) } // provisional; see assignIDs
 
 	for fi := 0; fi < cfg.Families; fi++ {
 		fam := g.family(fi)
@@ -113,11 +113,11 @@ func Generate(cfg Config) ([]Item, error) {
 			t := g.pickTarget(fam)
 			f, p, s := t.build(g, fam)
 			rec := corpus.Record{
-				ID: nextID(), Family: fam.id, Kind: corpus.KindBase, Task: fam.task,
-				Facts: f, Payload: p,
+				ID: nextID(), Task: fam.task, Facts: f, Payload: p,
 				Presentation: corpus.Presentation{ToolOrder: toolNames()},
 			}
 			truth := oracle.Judge(rec, s, t.policy)
+			truth.Family, truth.Scenario, truth.Kind = fam.id, t.name, corpus.KindBase
 			if err := check(t, rec, truth); err != nil {
 				return nil, err
 			}
@@ -143,9 +143,11 @@ func Generate(cfg Config) ([]Item, error) {
 		kind := kinds[k%len(kinds)]
 		line := fmt.Sprintf(pick(g.r, injections[kind]), 1000+g.r.IntN(9000))
 		rec := base.Record
-		rec.ID, rec.Kind, rec.BaseID, rec.Injection = nextID(), corpus.KindInjected, base.Record.ID, kind
+		rec.ID = nextID()
 		rec.Payload.Text = plant(g.r, rec.Payload.Kind, rec.Payload.Text, line)
 		truth := oracle.Judge(rec, base.Truth.Semantic, base.Truth.Policy)
+		truth.Family, truth.Scenario = base.Truth.Family, base.Truth.Scenario
+		truth.Kind, truth.BaseID, truth.Injection = corpus.KindInjected, base.Record.ID, kind
 		if truth.Verdict != corpus.Deny {
 			return nil, fmt.Errorf("law 2: injected record %s (base %s) is not denied by the oracle", rec.ID, base.Record.ID)
 		}
@@ -159,7 +161,7 @@ func Generate(cfg Config) ([]Item, error) {
 		base := bases[perm[k]]
 		v := variants[k%len(variants)]
 		rec := base.Record
-		rec.ID, rec.Kind, rec.BaseID, rec.Variant = nextID(), corpus.KindVariant, base.Record.ID, v
+		rec.ID = nextID()
 		rec.Presentation = corpus.Presentation{ToolOrder: toolNames()}
 		switch v {
 		case corpus.VariantReorder:
@@ -175,12 +177,33 @@ func Generate(cfg Config) ([]Item, error) {
 			rec.Payload.Text = plant(g.r, rec.Payload.Kind, rec.Payload.Text, pick(g.r, reviewerNotes))
 		}
 		truth := oracle.Judge(rec, base.Truth.Semantic, base.Truth.Policy)
+		truth.Family, truth.Scenario = base.Truth.Family, base.Truth.Scenario
+		truth.Kind, truth.BaseID, truth.Variant = corpus.KindVariant, base.Record.ID, v
 		if truth.Verdict != base.Truth.Verdict {
 			return nil, fmt.Errorf("variant %s changed the oracle verdict of %s", rec.ID, base.Record.ID)
 		}
 		items = append(items, Item{rec, truth})
 	}
-	return items, nil
+	return assignIDs(g.r, items), nil
+}
+
+// assignIDs shuffles the records and numbers them in the shuffled order, so
+// neither position nor ID tells a gate which records are bases, injections,
+// or variants.
+func assignIDs(r *rand.Rand, items []Item) []Item {
+	r.Shuffle(len(items), func(i, j int) { items[i], items[j] = items[j], items[i] })
+	final := make(map[string]string, len(items))
+	for i := range items {
+		final[items[i].Record.ID] = fmt.Sprintf("r%04d", i+1)
+	}
+	for i := range items {
+		id := final[items[i].Record.ID]
+		items[i].Record.ID, items[i].Truth.ID = id, id
+		if b := items[i].Truth.BaseID; b != "" {
+			items[i].Truth.BaseID = final[b]
+		}
+	}
+	return items
 }
 
 func check(t target, rec corpus.Record, truth corpus.Truth) error {
