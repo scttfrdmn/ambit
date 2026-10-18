@@ -18,10 +18,12 @@ import (
 // changes no fact under the policy prose:
 //   - an identified clinical note loses its header; rule 1.1 governs by the
 //     document's registration, not its content, and the subject is the same;
-//   - a context payload for run_compute or delegate gains one; such payloads
-//     are acted on, never sent, so policy 2 does not apply.
+//   - a run_compute job script gains one; it is acted on, never sent, and no
+//     rule reads it, so policy 2 does not apply.
 //
 // Messages and SQL are excluded: a header there changes a semantic fact.
+// Delegate payloads are excluded too: delegation passes the task to another
+// agent, and a careful reader can count that as outbound under rule 2.2.
 const (
 	VariantHeaderRemoved = "header_removed"
 	VariantHeaderAdded   = "header_added"
@@ -35,7 +37,7 @@ func headerEligible(it Item) bool {
 	switch {
 	case f.Tool == vocab.ToolReadDocument && f.Resource.DocKind == vocab.DocClinicalNote:
 		return true
-	case it.Record.Payload.Kind == corpus.PayloadContext && (f.Tool == vocab.ToolRunCompute || f.Tool == vocab.ToolDelegate):
+	case it.Record.Payload.Kind == corpus.PayloadContext && f.Tool == vocab.ToolRunCompute:
 		return true
 	}
 	return false
@@ -182,6 +184,12 @@ func (g *generator) traces(tc TraceConfig, nextID func() string) ([]Item, error)
 			f := corpus.Facts{Tool: vocab.ToolDelegate, Purpose: fam.purpose.ID, Depth: d, Chain: slices.Clone(full[:d+1])}
 			g.costs(&f, fam, costUnder)
 			delegateFacts(g, &f)
+			if d+1 < len(full) {
+				// The sub-agent this step creates is the next step's caller.
+				child := full[d+1]
+				f.Resource.ID = child.ID
+				f.Params["agent_id"], f.Params["role"] = child.ID, child.Role
+			}
 			p := corpus.Payload{Kind: corpus.PayloadContext, Text: contextText(g.r, vocab.ToolDelegate)}
 			if err := add(fam, TraceDelegation, d, 5, f, p, corpus.Semantic{}, "", ""); err != nil {
 				return nil, err
