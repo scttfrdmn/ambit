@@ -17,8 +17,8 @@ import (
 	"github.com/scttfrdmn/ambit/internal/hosted"
 	"github.com/scttfrdmn/ambit/internal/jeb"
 	"github.com/scttfrdmn/ambit/internal/run"
-	"github.com/scttfrdmn/ambit/internal/strands"
 	"github.com/scttfrdmn/ambit/internal/serialize"
+	"github.com/scttfrdmn/ambit/internal/strands"
 )
 
 // Spend caps (Law 6), in micro-dollars.
