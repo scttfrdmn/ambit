@@ -39,3 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hypothesis verdicts.
 - `ambit state`, and the `make model`, `make serve`, `make run` and
   `make report` runbooks.
+- Arms A-strands and B-strands (library): a client for strands-decider's
+  `/v1/systemone`, pinned to strands-decider-2B-hobson-v21, that sends one
+  request at a time; the agent state in strands-decider's tool-call hook
+  layout, with arguments byte-identical to Python's `json.dumps`; the
+  A-strands gate, which sends the hook-style and shared gate questions in
+  one request; and a strands-decider PIP for the Cedar arm.

@@ -7,6 +7,8 @@
 //     depends on a semantic fact; it reads the payload and nothing else.
 //   - A:  a decision model asked the gate question over the serialized
 //     agent state.
+//   - A-strands and B-strands: Arms A and B with strands-decider as the
+//     model (strands.go).
 //
 // A gate that errors denies; the error is recorded and reported.
 package arms
@@ -36,6 +38,9 @@ type Decision struct {
 	Determining []string `json:"determining_policies"`
 	// PAllow is Arm A's P(allowed).
 	PAllow *float64 `json:"p_allow,omitempty"`
+	// PShared is Arm A-strands' P(true) on the shared gate question
+	// (serialize.Question); PAllow is its hook question's.
+	PShared *float64 `json:"p_allow_shared,omitempty"`
 	// Facts are the PIP's answers (Arm B).
 	Facts      map[string]Fact `json:"pip_facts,omitempty"`
 	ModelCalls int             `json:"model_calls"`
