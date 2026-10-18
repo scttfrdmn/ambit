@@ -54,13 +54,59 @@ The output is deterministic, so rerunning reproduces the same hash.
 
 Confirms that the corpus files still match `SHA256SUMS` and prints the hash.
 
-### `make run ARM=b0|b|a-local|a-hosted`
+### `make model` and `make serve`
 
-Runs one arm over the frozen corpus. Results go under `results/`.
+Arm B's PIP and Arm A-local both use Jebadiah 4B v2. The weights are pinned
+by Hugging Face revision and file SHA-256.
+
+1. Install llama.cpp 0.7.0 or later: `brew install llama.cpp`.
+2. Run `make model`. It downloads the pinned GGUF to the external disk
+   (`~/.xtmp/ambit-models`) and checks its hash.
+3. Run `make serve` in a separate terminal. It serves the model on
+   127.0.0.1:8080.
+4. Optional: run `AMBIT_LLAMA_URL=http://127.0.0.1:8080 go test ./internal/jeb/`.
+   This checks the Go client against the output published on the model
+   card.
+
+### `make run ARM=...`
+
+Runs one arm over the frozen corpus. A run refuses to start if the corpus
+does not match `SHA256SUMS`.
+
+| ARM | Gate | Needs |
+| --- | --- | --- |
+| `b0` | Cedar over structural facts only | nothing |
+| `b` | Cedar + Jebadiah 4B PIP, asked only at the margin, on the payload only | `make serve` |
+| `b-hosted` | Cedar + OpenAI Decisions as the PIP (for H-pip) | `OPENAI_API_KEY` |
+| `a-local` | Jebadiah 4B over the serialized agent state | `make serve` |
+| `a-hosted` | OpenAI Decisions `gpt-6-luna` over the same state | `OPENAI_API_KEY` |
+
+Outputs go to `$(RESULTS)/<arm>-<timestamp>/`. `RESULTS` defaults to
+`~/.xtmp/ambit-results`, on the external disk. Each run directory holds:
+
+- `manifest.json`: corpus hash, git commit, model pins, and spend.
+- `decisions.jsonl`: one decision per record.
+- `raw.jsonl`: every model reply, verbatim.
+- `quill.jsonl`: one LKI audit entry per Cedar decision.
+
+Hosted calls are checked against two caps before they are made: $5 per run
+and $200 for the project, read from `$(RESULTS)/spend.jsonl`. A run stops
+rather than crossing either cap. Use `-limit n` for a smoke test.
+
+`ambit state <record-id>` prints the exact text every Arm A model receives
+for a record.
 
 ### `make report`
 
-Computes the measures with bootstrap CIs from `results/`.
+Scores the latest complete run of each arm against the oracle and writes
+`report.md` and `report.json` to `$(RESULTS)`. Every rate is reported per
+policy and per condition (clean, injected, and each variant), with 95%
+bootstrap intervals over scenario families. The report also covers:
+
+- flip rates against each arm's own decision on the base record;
+- latency, cost, and auditability;
+- PIP fact accuracy;
+- the registered hypotheses.
 
 ### `make test`
 
