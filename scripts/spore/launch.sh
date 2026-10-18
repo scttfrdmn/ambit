@@ -50,6 +50,7 @@ CMD="aws s3 cp $STAGE/gpu-job.sh /tmp/gpu-job.sh --quiet && bash /tmp/gpu-job.sh
 # computed at the on-demand rate either way).
 PURCHASE=(--spot)
 [ "${AMBIT_SPOT:-1}" = 0 ] && PURCHASE=()
+[ -n "${AMBIT_AZ:-}" ] && PURCHASE+=(--az "$AMBIT_AZ")
 spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
 	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate \
 	--volume-size 80 --tag project=ambit --tag "run=$NAME" \
