@@ -83,9 +83,12 @@ func (a Answer) P() float64 { return a.Probs["true"] }
 
 // Client talks to one llama-server.
 type Client struct {
-	URL    string
-	HTTP   *http.Client
-	labels []int // token id of label i at the answer boundary
+	URL  string
+	HTTP *http.Client
+	// CachePrompt lets llama-server reuse the KV cache of a shared prompt
+	// prefix (G2). It changes speed, not the forward pass; false is G1.
+	CachePrompt bool
+	labels      []int // token id of label i at the answer boundary
 }
 
 // New connects and resolves the label tokens.
@@ -231,7 +234,7 @@ func (c *Client) Ask(ctx context.Context, state string, q Question) (Answer, err
 	}
 	err := c.post(ctx, "/completion", map[string]any{
 		"prompt": prompt, "n_predict": 1, "n_probs": 1000, "post_sampling_probs": false,
-		"cache_prompt": false, "temperature": 0.0,
+		"cache_prompt": c.CachePrompt, "temperature": 0.0,
 	}, &r)
 	elapsed := time.Since(start)
 	if err != nil {

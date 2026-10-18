@@ -1,8 +1,11 @@
 // Package run drives one arm over the frozen corpus and writes its results.
 //
-// A run reads only records.jsonl. It refuses to start unless the corpus
-// verifies against SHA256SUMS, and it stamps the corpus hash, git commit,
-// and model pins into its manifest (Law 5). Output, under results/<run>/:
+// A run reads only the records (records.jsonl, or the G2 shards), streamed
+// in corpus order. It refuses to start unless the corpus verifies against
+// SHA256SUMS, and it stamps the corpus hash, git commit, and model pins into
+// its manifest (Law 5). At G2 scale a run covers one range of the corpus, a
+// shard, and may decide several records at once. Output, under
+// results/<run>/:
 //
 //	manifest.json    what ran, on what, when
 //	decisions.jsonl  one decision per record
@@ -13,11 +16,13 @@ package run
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/scttfrdmn/ambit/internal/arms"
@@ -42,41 +47,100 @@ type Manifest struct {
 	SpendMicros int64  `json:"spend_micros"`
 	Stopped     string `json:"stopped,omitempty"`
 	Notes       string `json:"notes,omitempty"`
+	// RangeStart and RangeEnd bound the records decided, [start, end) in
+	// corpus order; Records is their count. A manifest without them (G1)
+	// covers the whole corpus.
+	RangeStart  int    `json:"range_start"`
+	RangeEnd    int    `json:"range_end"`
+	Concurrency int    `json:"concurrency"`
+	Host        string `json:"host"`
+	// CachePrompt records whether llama-server reused prompt prefixes.
+	CachePrompt bool `json:"cache_prompt"`
+	// ProseSHA256 is the hash of the policy prose an Arm A model read, and
+	// Ablation names the registered prose ablation, if any, that produced it.
+	ProseSHA256 string `json:"prose_sha256,omitempty"`
+	Ablation    string `json:"ablation,omitempty"`
 }
 
 // Options configure a run.
 type Options struct {
 	CorpusDir  string
 	ResultsDir string
-	Limit      int
-	Models     map[string]string
-	// Before is called before each record (to label hosted spend).
-	Before func(r corpus.Record)
+	// Offset and Limit select records [Offset, Offset+Limit) in corpus
+	// order; Limit 0 runs to the end.
+	Offset int
+	Limit  int
+	// Concurrency is the number of records decided at once; 0 or 1 is
+	// sequential (G1). Above 1, output lines are written as decisions
+	// complete, so their order varies; each carries its record ID.
+	Concurrency int
+	Models      map[string]string
+	CachePrompt bool
+	ProseSHA256 string
+	Ablation    string
 	// Spent reports the run's hosted spend so far.
 	Spent func() int64
-	// Progress is called after each record.
+	// Progress is called after each record, with the count decided so far.
 	Progress func(i, n int, d arms.Decision)
 }
 
-// Run decides every record with g.
+// errDone ends a corpus scan early.
+var errDone = errors.New("done")
+
+// span resolves Offset and Limit against the corpus, reading no further
+// than it must.
+func span(dir string, offset, limit int) (int, int, error) {
+	if offset < 0 || limit < 0 {
+		return 0, 0, fmt.Errorf("offset %d, limit %d: must not be negative", offset, limit)
+	}
+	n := 0
+	err := corpus.Each(dir, "records", func(json.RawMessage) error {
+		n++
+		if limit > 0 && n >= offset+limit {
+			return errDone
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, errDone) {
+		return 0, 0, err
+	}
+	if offset > 0 && offset >= n {
+		return 0, 0, fmt.Errorf("offset %d is past the corpus's %d records", offset, n)
+	}
+	return offset, n, nil
+}
+
+// job is one record and its index in the corpus.
+type job struct {
+	i int
+	r corpus.Record
+}
+
+// Run decides the records in range with g.
 func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 	hash, err := corpus.Verify(opt.CorpusDir)
 	if err != nil {
 		return Manifest{}, err
 	}
-	recs, err := corpus.ReadJSONL[corpus.Record](filepath.Join(opt.CorpusDir, corpus.RecordsFile))
+	start, end, err := span(opt.CorpusDir, opt.Offset, opt.Limit)
 	if err != nil {
 		return Manifest{}, err
 	}
-	if opt.Limit > 0 && opt.Limit < len(recs) {
-		recs = recs[:opt.Limit]
-	}
+	workers := max(opt.Concurrency, 1)
 	commit, dirty := gitState()
+	host, _ := os.Hostname()
 	now := time.Now().UTC()
 	m := Manifest{
 		Run: fmt.Sprintf("%s-%s", g.Name(), now.Format("20060102T150405Z")), Arm: g.Name(),
 		CorpusHash: hash, GitCommit: commit, GitDirty: dirty, Models: opt.Models,
-		Started: now.Format(time.RFC3339), Records: len(recs),
+		Started: now.Format(time.RFC3339), Records: end - start,
+		RangeStart: start, RangeEnd: end, Concurrency: workers, Host: host,
+		CachePrompt: opt.CachePrompt, ProseSHA256: opt.ProseSHA256, Ablation: opt.Ablation,
+	}
+	if opt.Offset > 0 || opt.Limit > 0 {
+		// A shard's name carries its range, so shards started together do
+		// not collide.
+		m.Run += fmt.Sprintf("-%d-%d", start, end)
 	}
 	dir := filepath.Join(opt.ResultsDir, m.Run)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -100,47 +164,110 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 	}
 	defer rawF.Close()
 	var qw *quill.Writer
+	defer func() {
+		if qw != nil {
+			qw.Close()
+		}
+	}()
 	decEnc, rawEnc := json.NewEncoder(decF), json.NewEncoder(rawF)
 
-	for i, r := range recs {
-		if err := ctx.Err(); err != nil {
-			m.Stopped = "interrupted"
-			break
+	// mu guards m, the output files, and halt. Once halt is set (a spend
+	// stop, an interrupt, or a write error) no new record is started;
+	// decisions already in flight finish and are written.
+	var mu sync.Mutex
+	var halt bool
+	var werr error
+	stop := func(reason string) {
+		halt = true
+		if m.Stopped == "" {
+			m.Stopped = reason
 		}
-		if opt.Before != nil {
-			opt.Before(r)
-		}
-		d := g.Decide(ctx, r)
-		if d.Error != "" {
-			m.Errors++
-			if isSpendStop(d.Error) {
-				m.Stopped = d.Error
-				break
-			}
-		}
+	}
+	write := func(j job, d arms.Decision) error {
 		if err := decEnc.Encode(d); err != nil {
-			return m, err
+			return err
 		}
 		for _, raw := range d.Raw {
-			if err := rawEnc.Encode(map[string]any{"id": r.ID, "question": raw.Question, "reply": raw.Reply}); err != nil {
-				return m, err
+			if err := rawEnc.Encode(map[string]any{"id": j.r.ID, "question": raw.Question, "reply": raw.Reply}); err != nil {
+				return err
 			}
 		}
 		if len(d.Cedar) > 0 {
 			if qw == nil {
+				var err error
 				if qw, err = quill.NewWriter(filepath.Join(dir, "quill.jsonl")); err != nil {
-					return m, err
+					return err
 				}
-				defer qw.Close()
 			}
-			if err := qw.Write(quillEntry(m.Run, i+1, r, d)); err != nil {
-				return m, err
+			if err := qw.Write(quillEntry(m.Run, j.i+1, j.r, d)); err != nil {
+				return err
 			}
 		}
-		m.Decided++
-		if opt.Progress != nil {
-			opt.Progress(i+1, len(recs), d)
+		return nil
+	}
+	// halted reports whether to skip a record, marking an interrupt.
+	halted := func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		if !halt && ctx.Err() != nil {
+			stop("interrupted")
 		}
+		return halt
+	}
+
+	jobs := make(chan job)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := range jobs {
+				if halted() {
+					continue
+				}
+				d := g.Decide(arms.WithRecord(ctx, j.r.ID), j.r)
+				mu.Lock()
+				if d.Error != "" {
+					m.Errors++
+					if isSpendStop(d.Error) {
+						stop(d.Error)
+						mu.Unlock()
+						continue
+					}
+				}
+				if werr == nil {
+					if err := write(j, d); err != nil {
+						werr, halt = err, true
+					} else {
+						m.Decided++
+						if opt.Progress != nil {
+							opt.Progress(m.Decided, m.Records, d)
+						}
+					}
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+	i := 0
+	err = corpus.Each(opt.CorpusDir, "records", func(r corpus.Record) error {
+		defer func() { i++ }()
+		if i < start {
+			return nil
+		}
+		if i >= end || halted() {
+			return errDone
+		}
+		jobs <- job{i, r}
+		return nil
+	})
+	close(jobs)
+	wg.Wait()
+	if err != nil && !errors.Is(err, errDone) {
+		return m, err
+	}
+	if werr != nil {
+		return m, werr
 	}
 	if opt.Spent != nil {
 		m.SpendMicros = opt.Spent()

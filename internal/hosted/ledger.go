@@ -35,6 +35,8 @@ type Entry struct {
 	InputTokens int64  `json:"input_tokens"`
 	CostMicros  int64  `json:"cost_micros"`
 	Record      string `json:"record"`
+	// Attempts counts HTTP attempts, retries included (G2); absent in G1 logs.
+	Attempts int `json:"attempts,omitempty"`
 }
 
 // OpenLedger reads the spend log at path (which may not exist yet) and
@@ -60,30 +62,36 @@ func OpenLedger(path, run string, runCapMicros, projectCapMicros int64) (*Ledger
 }
 
 // Reserve holds an estimated cost, or refuses if it would cross a cap.
+// Reservations are summed, so concurrent calls together never cross a cap:
+// each is checked against the billed spend plus every estimate still
+// pending. Every successful Reserve must be followed by one Settle or
+// Release with the same estimate.
 func (l *Ledger) Reserve(est int64) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.runSpent+est > l.runCap {
-		return fmt.Errorf("per-run cap: $%.4f spent, next call ~$%.6f, cap $%.2f", float64(l.runSpent)/1e6, float64(est)/1e6, float64(l.runCap)/1e6)
+	if l.runSpent+l.pending+est > l.runCap {
+		return fmt.Errorf("per-run cap: $%.4f spent, $%.4f pending, next call ~$%.6f, cap $%.2f",
+			float64(l.runSpent)/1e6, float64(l.pending)/1e6, float64(est)/1e6, float64(l.runCap)/1e6)
 	}
-	if l.priorSpent+l.runSpent+est > l.projectCap {
-		return fmt.Errorf("project ceiling: $%.4f spent, cap $%.2f", float64(l.priorSpent+l.runSpent)/1e6, float64(l.projectCap)/1e6)
+	if l.priorSpent+l.runSpent+l.pending+est > l.projectCap {
+		return fmt.Errorf("project ceiling: $%.4f spent, $%.4f pending, cap $%.2f",
+			float64(l.priorSpent+l.runSpent)/1e6, float64(l.pending)/1e6, float64(l.projectCap)/1e6)
 	}
-	l.pending = est
+	l.pending += est
 	return nil
 }
 
-// Release drops a reservation for a call that was not billed.
-func (l *Ledger) Release() {
+// Release drops a reservation of est for a call that was not billed.
+func (l *Ledger) Release(est int64) {
 	l.mu.Lock()
-	l.pending = 0
+	l.pending -= est
 	l.mu.Unlock()
 }
 
-// Settle records the billed cost of the reserved call.
-func (l *Ledger) Settle(cost int64) {
+// Settle replaces a reservation of est with the call's billed cost.
+func (l *Ledger) Settle(est, cost int64) {
 	l.mu.Lock()
-	l.pending = 0
+	l.pending -= est
 	l.runSpent += cost
 	l.mu.Unlock()
 }
@@ -101,7 +109,7 @@ func (l *Ledger) Log(a Answer, record string) error {
 	defer f.Close()
 	return json.NewEncoder(f).Encode(Entry{
 		Time: time.Now().UTC().Format(time.RFC3339), Run: l.run, Model: Model, ServedModel: a.ServedModel,
-		InputTokens: a.InputTokens, CostMicros: a.CostMicros, Record: record,
+		InputTokens: a.InputTokens, CostMicros: a.CostMicros, Record: record, Attempts: a.Attempts,
 	})
 }
 
