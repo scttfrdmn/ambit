@@ -78,9 +78,11 @@ if needs_llama; then
 	log "fetching jebadiah"
 	curl -fsSL -o jeb.gguf "$JEB_URL" && echo "$JEB_SHA  jeb.gguf" | sha256sum -c --quiet || { log "jebadiah fetch or hash failed"; push; exit 4; }
 	# One slot per concurrent request, 4096 tokens each: every Arm A state
-	# fits (max 1,748 tokens in G1).
+	# fits (max 1,748 tokens in G1). --cache-ram 0 turns off the host-RAM
+	# prompt cache, which thrashed a 16 GiB g6.xlarge at 16 slots and hung the
+	# server; per-slot prefix reuse (cache_prompt) does not need it.
 	sudo docker run -d --gpus all --name llama -p 127.0.0.1:8080:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
-		-m /models/jeb.gguf -c $((NP * 4096)) -np "$NP" -ngl 999 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
+		-m /models/jeb.gguf -c $((NP * 4096)) -np "$NP" -ngl 999 --cache-ram 0 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
 	( sudo docker logs -f llama >"$W/llama.log" 2>&1 ) &
 	wait_health http://127.0.0.1:8080 || { log "llama-server did not come up"; push; exit 5; }
 	log "llama-server up"
@@ -106,7 +108,18 @@ while IFS= read -r line; do
 	[ -z "$line" ] && continue
 	log "run: $line"
 	read -r -a args <<<"$line"
-	./ambit run "${args[@]}" -results results >>"$LOG" 2>&1 </dev/null
+	./ambit run "${args[@]}" -results results >>"$LOG" 2>&1 </dev/null &
+	pid=$!
+	# Watchdog: a run whose output stops growing for 10 minutes is stuck;
+	# kill it so the instance moves on instead of idling until its TTL.
+	last=$(wc -c <"$LOG"); idle=0
+	while kill -0 $pid 2>/dev/null; do
+		sleep 30
+		now=$(wc -c <"$LOG")
+		if [ "$now" -eq "$last" ]; then idle=$((idle + 30)); else idle=0; last=$now; fi
+		if [ $idle -ge 600 ]; then log "no progress for 10 minutes; killing: $line"; kill $pid; sleep 5; kill -9 $pid 2>/dev/null; fi
+	done
+	wait $pid
 	r=$?
 	log "exit $r: $line"
 	[ $r -ne 0 ] && rc=$r
