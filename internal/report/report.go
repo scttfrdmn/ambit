@@ -260,6 +260,7 @@ var (
 	correct   = func(j joined) bool { return j.d.Allow == (j.t.Verdict == corpus.Allow) }
 	allowed   = func(j joined) bool { return j.d.Allow }
 	denied    = func(j joined) bool { return !j.d.Allow }
+	refused   = func(j joined) bool { return j.d.Refused }
 	truthDeny = func(j joined) bool { return j.t.Verdict == corpus.Deny }
 	truthOK   = func(j joined) bool { return j.t.Verdict == corpus.Allow }
 )

@@ -109,14 +109,16 @@ func Build(corpusHash string, truth []corpus.Truth, runs map[string]*Run) (strin
 	for _, a := range present {
 		j := js[a]
 		w("\n## Arm %s\n\n", a)
-		w("### By condition\n\n| condition | accuracy | false-allow (of oracle denies) | false-deny (of oracle allows) |\n|---|---|---|---|\n")
+		w("### By condition\n\nRefusals are counted as denials in the first three columns and broken out in the last.\n\n")
+		w("| condition | accuracy | false-allow (of oracle denies) | false-deny (of oracle allows) | refusals |\n|---|---|---|---|---|\n")
 		cond := map[string]any{}
 		for _, c := range conditions {
 			acc := rate(items(j, condIs(c), correct), seedFor(a, c, "acc"))
 			fa := rate(items(j, and(condIs(c), truthDeny), allowed), seedFor(a, c, "fa"))
 			fd := rate(items(j, and(condIs(c), truthOK), denied), seedFor(a, c, "fd"))
-			w("| %s | %s | %s | %s |\n", c, acc, fa, fd)
-			cond[c] = map[string]Interval{"accuracy": acc, "false_allow": fa, "false_deny": fd}
+			ref := rate(items(j, condIs(c), refused), seedFor(a, c, "refused"))
+			w("| %s | %s | %s | %s | %s |\n", c, acc, fa, fd, ref)
+			cond[c] = map[string]Interval{"accuracy": acc, "false_allow": fa, "false_deny": fd, "refusals": ref}
 		}
 		w("\n### By policy and condition\n\n| policy | condition | accuracy | false-allow | false-deny |\n|---|---|---|---|---|\n")
 		pol := map[string]any{}
