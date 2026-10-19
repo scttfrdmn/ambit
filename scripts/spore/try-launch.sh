@@ -5,7 +5,7 @@
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 for spot in 1 0; do
-	for type in g6.xlarge g5.xlarge g6.2xlarge g4dn.xlarge; do
+	for type in ${AMBIT_TYPES:-g6.xlarge g5.xlarge g6.2xlarge g4dn.xlarge}; do
 		for region in us-east-1 us-west-2; do
 			for az in $(aws ec2 describe-instance-type-offerings --region "$region" --location-type availability-zone \
 				--filters "Name=instance-type,Values=$type" --query 'InstanceTypeOfferings[].Location' --output text); do

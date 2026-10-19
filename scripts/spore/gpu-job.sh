@@ -24,13 +24,13 @@ log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$LOG"; }
 push() {
 	aws s3 sync "$W/results" "$OUT/results" --quiet --exclude 'spend.jsonl'
 	aws s3 cp "$LOG" "$OUT/job.log" --quiet
-	for f in llama.log strands.log; do [ -f "$W/$f" ] && aws s3 cp "$W/$f" "$OUT/$f" --quiet; done
+	for f in llama.log strands.log d3.log; do [ -f "$W/$f" ] && aws s3 cp "$W/$f" "$OUT/$f" --quiet; done
 }
 ( while true; do sleep 60; push; done ) &
 PUSHER=$!
 # On any exit, stop the background jobs and push what there is, so the
 # instance completes instead of idling until its TTL.
-trap 'kill $PUSHER 2>/dev/null; sudo docker rm -f llama >/dev/null 2>&1; pkill -f "strands-decider serve" 2>/dev/null; push' EXIT
+trap 'kill $PUSHER 2>/dev/null; sudo docker rm -f llama d3 >/dev/null 2>&1; pkill -f d3_server.py 2>/dev/null; pkill -f "strands-decider serve" 2>/dev/null; push' EXIT
 
 log "host $(hostname)"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader | tee -a "$LOG"
@@ -54,9 +54,25 @@ needs_llama() {
 	for a in $ARMS; do case "$a" in a-local | a-local-* | b | b-4b) return 0 ;; esac; done
 	return 1
 }
+needs_d3() {
+	grep -qE -- '-arm a-d3( |$)' RUNS
+}
 needs_strands() {
 	for a in $ARMS; do case "$a" in a-strands | a-strands-* | b-strands) return 0 ;; esac; done
 	return 1
+}
+
+# A --command instance has no Docker; install it and NVIDIA's container
+# toolkit if the AMI lacks them.
+ensure_docker() {
+	command -v docker >/dev/null || sudo dnf install -y -q docker >>"$LOG" 2>&1
+	if ! command -v nvidia-ctk >/dev/null; then
+		curl -fsSL https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo |
+			sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo >/dev/null
+		sudo dnf install -y -q nvidia-container-toolkit >>"$LOG" 2>&1
+	fi
+	sudo nvidia-ctk runtime configure --runtime=docker >>"$LOG" 2>&1
+	sudo systemctl restart docker
 }
 
 wait_health() {
@@ -65,16 +81,7 @@ wait_health() {
 }
 
 if needs_llama; then
-	# A --command instance has no Docker; install it and NVIDIA's container
-	# toolkit if the AMI lacks them.
-	if ! command -v docker >/dev/null; then sudo dnf install -y -q docker >>"$LOG" 2>&1; fi
-	if ! command -v nvidia-ctk >/dev/null; then
-		curl -fsSL https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo |
-			sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo >/dev/null
-		sudo dnf install -y -q nvidia-container-toolkit >>"$LOG" 2>&1
-	fi
-	sudo nvidia-ctk runtime configure --runtime=docker >>"$LOG" 2>&1
-	sudo systemctl restart docker
+	ensure_docker
 	log "fetching jebadiah"
 	curl -fsSL -o jeb.gguf "$JEB_URL" && echo "$JEB_SHA  jeb.gguf" | sha256sum -c --quiet || { log "jebadiah fetch or hash failed"; push; exit 4; }
 	# One slot per concurrent request, 4096 tokens each: every Arm A state
@@ -86,6 +93,33 @@ if needs_llama; then
 	( sudo docker logs -f llama >"$W/llama.log" 2>&1 ) &
 	wait_health http://127.0.0.1:8080 || { log "llama-server did not come up"; push; exit 5; }
 	log "llama-server up"
+fi
+
+# d3 (registration #33, item 14): ggml-org's Q8_0 GGUF on llama.cpp, one
+# slot (llama.cpp issue #30402), whole prompt in one ubatch; or, with
+# "#d3-official" in RUNS, the model repository's own BF16 server.
+D3_URL=https://huggingface.co/ggml-org/vllm-d3-GGUF/resolve/de9670136f5ddd83e677c89ce041d5b9bb3b0dcb/vllm-d3-Q8_0.gguf
+D3_SHA=82130d83cb6f31d43a742a08f737a78c087e408776115b6f28e5d3bc27617805
+if needs_d3 && grep -q '^#d3-official' RUNS; then
+	log "installing the official d3 runtime"
+	curl -LsSf https://astral.sh/uv/install.sh | sh >>"$LOG" 2>&1
+	export PATH="$HOME/.local/bin:$PATH"
+	uv venv --python 3.12 "$W/d3venv" >>"$LOG" 2>&1 && . "$W/d3venv/bin/activate"
+	uv pip install "transformers==5.17.0" torch torchvision pillow opencv-python-headless safetensors accelerate "flash-linear-attention==0.5.2" huggingface_hub >>"$LOG" 2>&1
+	hf download vllm-sr/d3 --revision cf15549a78fc52598ddd1951f321c58372bbd64f --local-dir "$W/d3" >>"$LOG" 2>&1
+	( python "$W/d3/d3_server.py" --model "$W/d3" --device cuda:0 --host 127.0.0.1 --port 8091 >"$W/d3.log" 2>&1 ) &
+	deactivate
+	wait_health http://127.0.0.1:8091 || { log "official d3 server did not come up"; exit 7; }
+	log "official d3 server up"
+elif needs_d3; then
+	log "fetching d3 Q8_0"
+	curl -fsSL -o d3.gguf "$D3_URL" && echo "$D3_SHA  d3.gguf" | sha256sum -c --quiet || { log "d3 fetch or hash failed"; exit 8; }
+	ensure_docker
+	sudo docker run -d --gpus all --name d3 -p 127.0.0.1:8090:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
+		-m /models/d3.gguf -c 4096 -np 1 -ub 4096 -b 4096 -ngl 999 --cache-ram 0 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
+	( sudo docker logs -f d3 >"$W/d3.log" 2>&1 ) &
+	wait_health http://127.0.0.1:8090 || { log "d3 llama-server did not come up"; exit 8; }
+	log "d3 llama-server up"
 fi
 
 if needs_strands; then

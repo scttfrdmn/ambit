@@ -36,6 +36,29 @@ type Pin struct {
 	Server string `json:"server"`
 }
 
+// D3Q8 is Decision 3.0 d3 (vllm-sr/d3) as ggml-org's Q8_0 GGUF, served by
+// llama.cpp's /v1/systemone (build b11669, the build ambit pins). It speaks
+// the same systemone wire as strands-decider, so this client serves it. Run
+// single-slot (-np 1): llama.cpp issue #30402 reports d3 answers changing
+// when requests share a batch. Registration #33, item 14.
+var D3Q8 = Pin{
+	Repo:         "ggml-org/vllm-d3-GGUF/vllm-d3-Q8_0.gguf",
+	Revision:     "de9670136f5ddd83e677c89ce041d5b9bb3b0dcb",
+	BaseRepo:     "vllm-sr/d3",
+	BaseRevision: "cf15549a78fc52598ddd1951f321c58372bbd64f",
+	Server:       "llama.cpp b11669 (620d2225) server-cuda image sha256:e4cfff28678327b0ae7eda129e700e56a0fa55aa23db2f016256ea155c15c2b5; GGUF sha256 82130d83cb6f31d43a742a08f737a78c087e408776115b6f28e5d3bc27617805",
+}
+
+// D3Official is d3 in BF16 with the model repository's own server
+// (d3_server.py, transformers 5.17.0), for the fidelity check of D3Q8.
+var D3Official = Pin{
+	Repo:         "vllm-sr/d3",
+	Revision:     "cf15549a78fc52598ddd1951f321c58372bbd64f",
+	BaseRepo:     "vllm-sr/d3",
+	BaseRevision: "cf15549a78fc52598ddd1951f321c58372bbd64f",
+	Server:       "d3_server.py from the model repository at cf15549a; transformers==5.17.0, flash-linear-attention==0.5.2",
+}
+
 // ID names the model and its pin.
 func (p Pin) ID() string { return p.Repo + "@" + p.Revision }
 

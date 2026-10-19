@@ -47,6 +47,8 @@ func cmdRun(args []string) error {
 	llama := fs.String("llama", "http://127.0.0.1:8080", "llama-server serving the pinned Jebadiah GGUF")
 	ceiling := fs.Float64("ceiling", 200, "hosted spend ceiling in dollars for this results directory's ledger (G1 $200, G2 $300, G3 $500)")
 	repair := fs.String("repair", "", "comma-separated run directories: re-ask only the records whose decisions there are errors")
+	d3URL := fs.String("d3", "http://127.0.0.1:8090", "systemone server for d3 (llama.cpp Q8_0, or the official d3_server.py)")
+	d3Runtime := fs.String("d3-runtime", "q8", "which d3 is behind -d3: q8 (llama.cpp Q8_0) or official (BF16 d3_server.py)")
 	strandsConcurrent := fs.Bool("strands-concurrent", false, "send strands-decider requests concurrently (Linux CUDA only; see internal/strands)")
 	strandsURL := fs.String("strands", "http://127.0.0.1:8000", "strands-decider serve, with the pinned hobson-v21 checkpoint")
 	fs.Parse(args)
@@ -63,7 +65,7 @@ func cmdRun(args []string) error {
 		return err
 	}
 	prose := string(b)
-	isA := *arm == "a-local" || *arm == "a-hosted" || *arm == "a-strands"
+	isA := *arm == "a-local" || *arm == "a-hosted" || *arm == "a-strands" || *arm == "a-d3"
 	if *ablation != "" {
 		ablate, ok := ablations[*ablation]
 		if !ok {
@@ -177,6 +179,23 @@ func cmdRun(args []string) error {
 			return err
 		}
 		g = &arms.Strands{Arm: armName, Policy: prose, C: c, Pin: strands.HobsonV21}
+	case "a-d3":
+		pin := strands.D3Q8
+		switch *d3Runtime {
+		case "q8":
+		case "official":
+			pin = strands.D3Official
+		default:
+			return fmt.Errorf("unknown -d3-runtime %q", *d3Runtime)
+		}
+		c, err := strands.New(ctx, *d3URL)
+		if err != nil {
+			return fmt.Errorf("d3 at %s: %w", *d3URL, err)
+		}
+		opt.Models["d3"] = pin.ID() + " base " + pin.BaseRepo + "@" + pin.BaseRevision + " server " + pin.Server
+		// d3 gets the shared state and gate proposition as a noul, like
+		// A-local and A-hosted; no wrapper instructions (registration #33).
+		g = &arms.Model{Arm: armName, Policy: prose, M: &arms.StrandsPIP{C: c, Pin: pin}}
 	case "b-strands":
 		c, err := decider()
 		if err != nil {

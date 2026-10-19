@@ -61,7 +61,7 @@ PURCHASE=(--spot)
 [ -n "${AMBIT_AZ:-}" ] && PURCHASE+=(--az "$AMBIT_AZ")
 spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
 	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate \
-	--volume-size 80 --tag project=ambit --tag "run=$NAME" \
+	--volume-size "${AMBIT_VOLUME:-80}" --tag project=ambit --tag "run=$NAME" \
 	--s3-read "$BUCKET" --s3-write "$BUCKET" \
 	--command "$CMD" -y
 # Local backstop: terminate the instance through the EC2 API 15 minutes past

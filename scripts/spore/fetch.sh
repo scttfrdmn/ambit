@@ -19,6 +19,6 @@ mkdir -p "$DEST/spore-logs/$NAME"
 for host in $(aws s3 ls "$STAGE/out/" | awk '/PRE/{print $2}' | tr -d /); do
 	aws s3 sync "$STAGE/out/$host/results" "$DEST" --quiet
 	aws s3 cp "$STAGE/out/$host/job.log" "$DEST/spore-logs/$NAME/$host.job.log" --quiet || true
-	for f in llama.log strands.log; do aws s3 cp "$STAGE/out/$host/$f" "$DEST/spore-logs/$NAME/$host.$f" --quiet 2>/dev/null || true; done
+	for f in llama.log strands.log d3.log; do aws s3 cp "$STAGE/out/$host/$f" "$DEST/spore-logs/$NAME/$host.$f" --quiet 2>/dev/null || true; done
 done
 echo "fetched $NAME into $DEST"
