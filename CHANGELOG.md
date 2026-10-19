@@ -80,6 +80,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Within-ambit accuracy per arm.
   - Refusals shown as structural for arms that cannot refuse.
   - Law 3 checks the arms that share a serializer.
+  - The registered G2b analysis plan (#33):
+    - `-transfer-from`: the threshold transfer test, Arm A at a prior
+      report's matched t.
+    - A full-procedure bootstrap on the matched comparison that re-selects
+      t in every resample.
+    - Ratio intervals for B / A, and Holm-adjusted one-sided p-values.
+    - Exploratory B-arm curves over the PIP acceptance threshold, and
+      calibration tables.
+    - `-replicate`: a replication table against a prior report.
 - `scripts/spore`, which runs work on spore.host:
   - Stages a bundle and a runs file, then launches spot GPU instances with
     a TTL, a cost limit of at most $20, a `project=ambit` tag and a scoped

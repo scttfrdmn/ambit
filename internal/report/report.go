@@ -40,6 +40,12 @@ type Options struct {
 	// Resamples per bootstrap interval; 0 means DefaultResamples. Fewer
 	// make a 10^6-record report faster; the count is printed and recorded.
 	Resamples int
+	// TransferFrom, if set, adds the threshold transfer test (C1 of the G2b
+	// plan on #33) with Arm A's matched thresholds from this prior report.
+	TransferFrom *Prior
+	// Replicate, if set, adds the replication table (E3) against this
+	// prior report.
+	Replicate *Prior
 }
 
 // --- The oracle ---
@@ -368,6 +374,11 @@ type Arm struct {
 	errs    map[int32]string
 	served  map[string]bool
 	hasP    bool
+	// pipP holds each record's PIP probabilities, P(fact true) in facts
+	// order, for the B arms (nil otherwise); a fact's entry means something
+	// only where dec.facts says the fact was answered. It is beside decs,
+	// not in dec, so the Arm A arms carry no extra bytes per record.
+	pipP [][3]float64
 }
 
 // Loaded is what Load found under a results directory.
@@ -455,6 +466,9 @@ func Load(dir string, c *Corpus) (*Loaded, error) {
 			continue
 		}
 		a := &Arm{Name: name, decs: make([]dec, n), errs: map[int32]string{}, served: map[string]bool{}}
+		if slices.Contains(bArms, name) {
+			a.pipP = make([][3]float64, n)
+		}
 		for _, s := range set {
 			a.Runs = append(a.Runs, s.m)
 			jobs = append(jobs, job{a, s})
@@ -599,6 +613,20 @@ func toDec(d decision) dec {
 	return x
 }
 
+// setPIP records decision d's PIP probabilities at record i, for a B arm.
+// Runs fill disjoint records, so this needs no lock.
+func setPIP(a *Arm, i int32, d decision) {
+	if a.pipP == nil {
+		return
+	}
+	a.pipP[i] = [3]float64{}
+	for f, ans := range d.Facts {
+		if k := slices.Index(facts, f); k >= 0 {
+			a.pipP[i][k] = ans.P
+		}
+	}
+}
+
 // applyRepairs substitutes the decisions of repair runs (oldest first) for
 // errored decisions in the scored set, and for nothing else.
 func applyRepairs(c *Corpus, a *Arm, repairs []span) error {
@@ -617,6 +645,7 @@ func applyRepairs(c *Corpus, a *Arm, repairs []span) error {
 				return nil
 			}
 			a.decs[i] = toDec(d)
+			setPIP(a, i, d)
 			delete(a.errs, i)
 			fixed++
 			if a.shared != nil && d.PAllowShared != nil {
@@ -665,6 +694,7 @@ func loadRun(c *Corpus, a *Arm, s span, mu *sync.Mutex) error {
 		seen[int(i)-s.start] = true
 		got++
 		a.decs[i] = toDec(d)
+		setPIP(a, i, d)
 		if d.PAllowShared != nil {
 			if shared == nil {
 				shared = map[int32]float64{}
