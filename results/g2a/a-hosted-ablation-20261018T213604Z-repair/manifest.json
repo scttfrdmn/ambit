@@ -1,0 +1,30 @@
+{
+  "run": "a-hosted-ablation-20261018T213604Z-repair",
+  "arm": "a-hosted-ablation",
+  "corpus_hash": "8622a1220109dfa93ae28f2840171429d4de54341bd4bfba33ae566a88734862",
+  "git_commit": "c614139710e049445a7d32004cc143bc898bed06",
+  "git_dirty": false,
+  "models": {
+    "hosted": "openai/decisions/gpt-6-luna"
+  },
+  "started": "2026-10-18T21:36:04Z",
+  "finished": "2026-10-18T21:36:07Z",
+  "records": 49,
+  "decided": 49,
+  "errors": 0,
+  "spend_micros": 7838,
+  "range_start": 0,
+  "range_end": 100000,
+  "concurrency": 2,
+  "host": "terror",
+  "cache_prompt": false,
+  "prose_sha256": "9fd0f9d0d2877cb894935fc3bae21fb12d02471ed3ac301692315f112e9ed598",
+  "ablation": "failclosed",
+  "repair_of": [
+    "a-hosted-ablation-20261018T201334Z-0-20000",
+    "a-hosted-ablation-20261018T202925Z-20000-40000",
+    "a-hosted-ablation-20261018T204517Z-40000-60000",
+    "a-hosted-ablation-20261018T210108Z-60000-80000",
+    "a-hosted-ablation-20261018T211659Z-80000-100000"
+  ]
+}

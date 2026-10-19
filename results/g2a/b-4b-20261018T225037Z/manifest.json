@@ -1,0 +1,21 @@
+{
+  "run": "b-4b-20261018T225037Z",
+  "arm": "b-4b",
+  "corpus_hash": "8622a1220109dfa93ae28f2840171429d4de54341bd4bfba33ae566a88734862",
+  "git_commit": "0cd9db7cd8ff8b05b1aa4a6057057875d2f0504b",
+  "git_dirty": false,
+  "models": {
+    "jebadiah": "frontier-infra/jebadiah-4b-v2-GGUF@446099f37ca1cea4324d8866b44a1dbc15f77c94/jebadiah-4b-v2-Q8_0.gguf sha256:36f4a54fe07ed79b186a2128bfb1598ba210b1ab0a945296069a4e5cdbb9875a"
+  },
+  "started": "2026-10-18T22:50:37Z",
+  "finished": "2026-10-19T00:02:33Z",
+  "records": 100000,
+  "decided": 100000,
+  "errors": 0,
+  "spend_micros": 0,
+  "range_start": 0,
+  "range_end": 100000,
+  "concurrency": 16,
+  "host": "ambit-g2a-llama",
+  "cache_prompt": true
+}
