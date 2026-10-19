@@ -150,7 +150,7 @@ func Build(c *Corpus, l *Loaded, opt Options) (string, map[string]any, error) {
 	// reads a different layout carrying the same information (checked by
 	// serialize.TestStrandsStateCarriesState), so it is noted, not compared.
 	law3 := false
-	for _, pair := range [][2]string{{"a-local", "a-hosted"}, {"a-local-ablation", "a-hosted-ablation"}} {
+	for _, pair := range [][2]string{{"a-local", "a-hosted"}, {"a-local", "a-d3"}, {"a-local", "a-safeguard"}, {"a-local-ablation", "a-hosted-ablation"}} {
 		x, y := l.Arms[pair[0]], l.Arms[pair[1]]
 		if x == nil || y == nil || x.state == nil || y.state == nil {
 			continue
