@@ -19,7 +19,21 @@ func cmdReport(args []string) error {
 	results := fs.String("results", "results", "results directory")
 	out := fs.String("out", "", "where to write report.md and report.json (default: the results directory)")
 	resamples := fs.Int("resamples", report.DefaultResamples, "bootstrap resamples per interval")
+	transferFrom := fs.String("transfer-from", "", "a prior report.json: add the threshold transfer test at its matched thresholds (#33, G2b plan C1)")
+	replicate := fs.String("replicate", "", "a prior report.json: add the replication table against it (#33, G2b plan E3)")
 	fs.Parse(args)
+	opt := report.Options{Resamples: *resamples}
+	var err error
+	if *transferFrom != "" {
+		if opt.TransferFrom, err = report.LoadPrior(*transferFrom); err != nil {
+			return err
+		}
+	}
+	if *replicate != "" {
+		if opt.Replicate, err = report.LoadPrior(*replicate); err != nil {
+			return err
+		}
+	}
 	if *out == "" {
 		*out = *results
 	}
@@ -36,7 +50,7 @@ func cmdReport(args []string) error {
 		return fmt.Errorf("no complete runs on corpus %.12s under %s", c.Hash, *results)
 	}
 	fmt.Fprintf(os.Stderr, "loaded %d records and %d arms in %s\n", c.Len(), len(loaded.Arms), time.Since(start).Round(time.Millisecond))
-	md, data, err := report.Build(c, loaded, report.Options{Resamples: *resamples})
+	md, data, err := report.Build(c, loaded, opt)
 	if err != nil {
 		return err
 	}

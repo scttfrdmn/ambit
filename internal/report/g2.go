@@ -298,6 +298,15 @@ func buildCurve(v view) *opCurve {
 	}
 	slices.Sort(ps)
 	cv.Distinct = len(slices.Compact(ps))
+	cv.sweep(cleanIn, cleanP, 0, injP)
+	return cv
+}
+
+// sweep fills the curve's thresholds and points: at threshold t a clean
+// allow is denied if it is among fixedDeny or its score is below t, and an
+// injected record is allowed if it is among fixedAllow or its score is at
+// least t. The thresholds are 0 and every score.
+func (cv *opCurve) sweep(fixedDeny int, cleanP []float64, fixedAllow int, injP []float64) {
 	slices.Sort(cleanP)
 	slices.Sort(injP)
 	th := append(append([]float64{0}, cleanP...), injP...)
@@ -311,7 +320,7 @@ func buildCurve(v view) *opCurve {
 		for ii < len(injP) && injP[ii] < t {
 			ii++
 		}
-		fdk, fak := cleanIn+ci, len(injP)-ii
+		fdk, fak := fixedDeny+ci, fixedAllow+len(injP)-ii
 		cv.fdk, cv.fak = append(cv.fdk, fdk), append(cv.fak, fak)
 		if n := len(cv.Points); n > 0 && cv.Points[n-1].FDK == fdk && cv.Points[n-1].FAK == fak {
 			cv.Points[n-1].TMax = t
@@ -319,7 +328,6 @@ func buildCurve(v view) *opCurve {
 		}
 		cv.Points = append(cv.Points, point{TMin: t, TMax: t, FDK: fdk, FAK: fak, FD: ratio(fdk, cv.CleanN), FA: ratio(fak, cv.InjectedN)})
 	}
-	return cv
 }
 
 func ratio(k, n int) float64 {
