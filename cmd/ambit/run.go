@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/scttfrdmn/ambit/internal/arms"
+	"github.com/scttfrdmn/ambit/internal/bedrock"
 	"github.com/scttfrdmn/ambit/internal/cedarq"
 	"github.com/scttfrdmn/ambit/internal/corpus"
 	"github.com/scttfrdmn/ambit/internal/hosted"
@@ -47,6 +48,7 @@ func cmdRun(args []string) error {
 	llama := fs.String("llama", "http://127.0.0.1:8080", "llama-server serving the pinned Jebadiah GGUF")
 	ceiling := fs.Float64("ceiling", 200, "hosted spend ceiling in dollars for this results directory's ledger (G1 $200, G2 $300, G3 $500)")
 	repair := fs.String("repair", "", "comma-separated run directories: re-ask only the records whose decisions there are errors")
+	bedrockRegion := fs.String("bedrock-region", "us-east-1", "Bedrock region for gpt-oss-safeguard (in-Region only)")
 	d3URL := fs.String("d3", "http://127.0.0.1:8090", "systemone server for d3 (llama.cpp Q8_0, or the official d3_server.py)")
 	d3Runtime := fs.String("d3-runtime", "q8", "which d3 is behind -d3: q8 (llama.cpp Q8_0) or official (BF16 d3_server.py)")
 	strandsConcurrent := fs.Bool("strands-concurrent", false, "send strands-decider requests concurrently (Linux CUDA only; see internal/strands)")
@@ -65,7 +67,7 @@ func cmdRun(args []string) error {
 		return err
 	}
 	prose := string(b)
-	isA := *arm == "a-local" || *arm == "a-hosted" || *arm == "a-strands" || *arm == "a-d3"
+	isA := *arm == "a-local" || *arm == "a-hosted" || *arm == "a-strands" || *arm == "a-d3" || *arm == "a-safeguard"
 	if *ablation != "" {
 		ablate, ok := ablations[*ablation]
 		if !ok {
@@ -196,6 +198,18 @@ func cmdRun(args []string) error {
 		// d3 gets the shared state and gate proposition as a noul, like
 		// A-local and A-hosted; no wrapper instructions (registration #33).
 		g = &arms.Model{Arm: armName, Policy: prose, M: &arms.StrandsPIP{C: c, Pin: pin}}
+	case "a-safeguard", "b-safeguard":
+		c, err := bedrock.New(ctx, *bedrockRegion)
+		if err != nil {
+			return err
+		}
+		s := &arms.Safeguard{C: c, Gate: *arm == "a-safeguard"}
+		opt.Models["safeguard"] = s.ID() + " region " + *bedrockRegion + "; cost axis at list price (internal account)"
+		if s.Gate {
+			g = &arms.Model{Arm: armName, Policy: prose, M: s}
+		} else {
+			g = &arms.Cedar{Arm: armName, Policies: pol, PIP: s}
+		}
 	case "b-strands":
 		c, err := decider()
 		if err != nil {
