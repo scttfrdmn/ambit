@@ -67,5 +67,9 @@ spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"$
 # Local backstop: terminate the instance through the EC2 API 15 minutes past
 # its TTL if it is still alive (see deadman.sh).
 mkdir -p "$HOME/.xtmp/ambit-logs"
-nohup "$ROOT/scripts/spore/deadman.sh" "$NAME" "$REGION" "$TTL" >"$HOME/.xtmp/ambit-logs/deadman-$NAME.log" 2>&1 &
+# Run private copies: bash reads a script as it executes, so editing
+# deadman.sh during the watcher's sleep would corrupt it.
+DM="$HOME/.xtmp/ambit-logs/deadman-$NAME"
+mkdir -p "$DM" && cp scripts/spore/deadman.sh scripts/spore/ttl.sh "$DM/"
+nohup "$DM/deadman.sh" "$NAME" "$REGION" "$TTL" >"$DM.log" 2>&1 &
 echo "staged at $STAGE; logs at $STAGE/out/<host>/job.log; dead-man watcher pid $!"
