@@ -1,0 +1,18 @@
+{
+  "run": "b0-20261018T225007Z",
+  "arm": "b0",
+  "corpus_hash": "8622a1220109dfa93ae28f2840171429d4de54341bd4bfba33ae566a88734862",
+  "git_commit": "0cd9db7cd8ff8b05b1aa4a6057057875d2f0504b",
+  "git_dirty": false,
+  "started": "2026-10-18T22:50:07Z",
+  "finished": "2026-10-18T22:50:25Z",
+  "records": 100000,
+  "decided": 100000,
+  "errors": 0,
+  "spend_micros": 0,
+  "range_start": 0,
+  "range_end": 100000,
+  "concurrency": 1,
+  "host": "ambit-g2a-llama",
+  "cache_prompt": false
+}

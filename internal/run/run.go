@@ -391,6 +391,9 @@ func Repairable(e string) bool {
 		return false
 	}
 	for _, s := range []string{"429 Too Many Requests", "500 Internal Server Error", "502 Bad Gateway", "503 Service Unavailable",
+		// Bedrock (AWS SDK) capacity and throttling errors.
+		"ServiceUnavailableException", "ThrottlingException", "ModelNotReadyException", "StatusCode: 429", "StatusCode: 503",
+		"retry quota exceeded",
 		"504 Gateway Timeout", "context deadline exceeded", "Client.Timeout", "connection reset", "connection refused", "unexpected EOF", "i/o timeout"} {
 		if strings.Contains(e, s) {
 			return true

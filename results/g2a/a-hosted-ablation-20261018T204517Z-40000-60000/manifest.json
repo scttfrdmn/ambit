@@ -1,0 +1,23 @@
+{
+  "run": "a-hosted-ablation-20261018T204517Z-40000-60000",
+  "arm": "a-hosted-ablation",
+  "corpus_hash": "8622a1220109dfa93ae28f2840171429d4de54341bd4bfba33ae566a88734862",
+  "git_commit": "eeec3874dd02ae891073d014894606bf053005d3",
+  "git_dirty": false,
+  "models": {
+    "hosted": "openai/decisions/gpt-6-luna"
+  },
+  "started": "2026-10-18T20:45:17Z",
+  "finished": "2026-10-18T21:01:07Z",
+  "records": 20000,
+  "decided": 20000,
+  "errors": 12,
+  "spend_micros": 3175598,
+  "range_start": 40000,
+  "range_end": 60000,
+  "concurrency": 8,
+  "host": "terror",
+  "cache_prompt": false,
+  "prose_sha256": "9fd0f9d0d2877cb894935fc3bae21fb12d02471ed3ac301692315f112e9ed598",
+  "ablation": "failclosed"
+}

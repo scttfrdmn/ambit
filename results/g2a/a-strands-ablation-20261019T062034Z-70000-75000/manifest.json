@@ -1,0 +1,24 @@
+{
+  "run": "a-strands-ablation-20261019T062034Z-70000-75000",
+  "arm": "a-strands-ablation",
+  "corpus_hash": "8622a1220109dfa93ae28f2840171429d4de54341bd4bfba33ae566a88734862",
+  "git_commit": "97c7793b3a5167dc39e814313946a4b9021add5a",
+  "git_dirty": false,
+  "models": {
+    "strands": "StrandsAgents/strands-decider-2B-hobson-v21@2b52a6235c1b8306bbfa30b00b9d4b74b63a39f5 base Qwen/Qwen3.5-2B-Base@b1485b2fa6dfa1287294f269f5fb618e03d52d7c server strands-labs/strands-decider@930e6d5de16309be32579f5631a7369a3322140c",
+    "strands_server_reports": "model v21 checkpoint /work/v21 base Qwen/Qwen3.5-2B-Base device cuda"
+  },
+  "started": "2026-10-19T06:20:34Z",
+  "finished": "2026-10-19T06:44:12Z",
+  "records": 5000,
+  "decided": 5000,
+  "errors": 0,
+  "spend_micros": 0,
+  "range_start": 70000,
+  "range_end": 75000,
+  "concurrency": 1,
+  "host": "g2a-b-7",
+  "cache_prompt": false,
+  "prose_sha256": "9fd0f9d0d2877cb894935fc3bae21fb12d02471ed3ac301692315f112e9ed598",
+  "ablation": "failclosed"
+}

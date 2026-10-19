@@ -1,0 +1,400 @@
+-arm a-local -dir corpus/g2b -offset 0 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 5000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 10000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 15000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 20000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 25000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 30000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 35000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 40000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 45000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 50000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 55000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 60000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 65000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 70000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 75000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 80000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 85000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 90000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 95000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 100000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 105000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 110000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 115000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 120000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 125000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 130000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 135000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 140000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 145000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 150000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 155000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 160000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 165000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 170000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 175000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 180000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 185000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 190000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 195000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 200000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 205000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 210000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 215000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 220000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 225000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 230000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 235000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 240000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 245000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 250000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 255000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 260000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 265000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 270000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 275000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 280000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 285000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 290000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 295000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 300000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 305000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 310000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 315000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 320000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 325000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 330000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 335000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 340000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 345000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 350000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 355000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 360000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 365000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 370000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 375000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 380000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 385000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 390000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 395000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 400000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 405000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 410000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 415000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 420000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 425000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 430000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 435000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 440000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 445000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 450000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 455000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 460000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 465000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 470000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 475000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 480000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 485000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 490000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 495000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 500000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 505000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 510000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 515000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 520000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 525000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 530000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 535000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 540000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 545000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 550000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 555000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 560000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 565000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 570000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 575000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 580000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 585000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 590000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 595000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 600000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 605000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 610000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 615000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 620000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 625000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 630000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 635000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 640000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 645000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 650000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 655000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 660000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 665000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 670000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 675000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 680000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 685000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 690000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 695000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 700000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 705000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 710000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 715000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 720000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 725000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 730000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 735000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 740000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 745000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 750000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 755000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 760000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 765000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 770000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 775000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 780000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 785000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 790000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 795000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 800000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 805000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 810000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 815000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 820000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 825000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 830000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 835000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 840000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 845000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 850000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 855000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 860000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 865000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 870000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 875000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 880000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 885000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 890000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 895000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 900000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 905000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 910000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 915000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 920000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 925000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 930000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 935000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 940000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 945000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 950000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 955000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 960000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 965000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 970000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 975000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 980000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 985000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 990000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2b -offset 995000 -limit 5000 -concurrency 16 -cache-prompt
+-arm a-strands -dir corpus/g2b -offset 0 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 5000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 10000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 15000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 20000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 25000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 30000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 35000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 40000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 45000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 50000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 55000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 60000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 65000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 70000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 75000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 80000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 85000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 90000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 95000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 100000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 105000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 110000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 115000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 120000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 125000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 130000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 135000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 140000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 145000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 150000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 155000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 160000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 165000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 170000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 175000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 180000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 185000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 190000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 195000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 200000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 205000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 210000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 215000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 220000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 225000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 230000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 235000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 240000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 245000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 250000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 255000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 260000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 265000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 270000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 275000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 280000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 285000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 290000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 295000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 300000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 305000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 310000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 315000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 320000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 325000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 330000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 335000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 340000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 345000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 350000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 355000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 360000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 365000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 370000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 375000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 380000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 385000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 390000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 395000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 400000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 405000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 410000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 415000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 420000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 425000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 430000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 435000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 440000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 445000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 450000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 455000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 460000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 465000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 470000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 475000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 480000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 485000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 490000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 495000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 500000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 505000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 510000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 515000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 520000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 525000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 530000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 535000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 540000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 545000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 550000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 555000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 560000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 565000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 570000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 575000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 580000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 585000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 590000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 595000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 600000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 605000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 610000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 615000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 620000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 625000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 630000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 635000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 640000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 645000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 650000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 655000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 660000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 665000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 670000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 675000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 680000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 685000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 690000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 695000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 700000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 705000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 710000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 715000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 720000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 725000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 730000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 735000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 740000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 745000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 750000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 755000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 760000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 765000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 770000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 775000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 780000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 785000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 790000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 795000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 800000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 805000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 810000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 815000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 820000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 825000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 830000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 835000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 840000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 845000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 850000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 855000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 860000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 865000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 870000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 875000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 880000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 885000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 890000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 895000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 900000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 905000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 910000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 915000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 920000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 925000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 930000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 935000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 940000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 945000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 950000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 955000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 960000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 965000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 970000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 975000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 980000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 985000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 990000 -limit 5000
+-arm a-strands -dir corpus/g2b -offset 995000 -limit 5000

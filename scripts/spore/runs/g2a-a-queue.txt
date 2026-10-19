@@ -1,0 +1,24 @@
+-arm a-local -dir corpus/g2a -offset 0 -limit 20000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2a -offset 0 -limit 20000 -concurrency 16 -cache-prompt -ablation failclosed
+-arm a-local -dir corpus/g2a -offset 20000 -limit 20000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2a -offset 20000 -limit 20000 -concurrency 16 -cache-prompt -ablation failclosed
+-arm a-local -dir corpus/g2a -offset 40000 -limit 20000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2a -offset 40000 -limit 20000 -concurrency 16 -cache-prompt -ablation failclosed
+-arm a-local -dir corpus/g2a -offset 60000 -limit 20000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2a -offset 60000 -limit 20000 -concurrency 16 -cache-prompt -ablation failclosed
+-arm a-local -dir corpus/g2a -offset 80000 -limit 20000 -concurrency 16 -cache-prompt
+-arm a-local -dir corpus/g2a -offset 80000 -limit 20000 -concurrency 16 -cache-prompt -ablation failclosed
+-arm a-strands -dir corpus/g2a -offset 0 -limit 15000
+-arm a-strands -dir corpus/g2a -offset 0 -limit 15000 -ablation failclosed
+-arm a-strands -dir corpus/g2a -offset 15000 -limit 15000
+-arm a-strands -dir corpus/g2a -offset 15000 -limit 15000 -ablation failclosed
+-arm a-strands -dir corpus/g2a -offset 30000 -limit 15000
+-arm a-strands -dir corpus/g2a -offset 30000 -limit 15000 -ablation failclosed
+-arm a-strands -dir corpus/g2a -offset 45000 -limit 15000
+-arm a-strands -dir corpus/g2a -offset 45000 -limit 15000 -ablation failclosed
+-arm a-strands -dir corpus/g2a -offset 60000 -limit 15000
+-arm a-strands -dir corpus/g2a -offset 60000 -limit 15000 -ablation failclosed
+-arm a-strands -dir corpus/g2a -offset 75000 -limit 15000
+-arm a-strands -dir corpus/g2a -offset 75000 -limit 15000 -ablation failclosed
+-arm a-strands -dir corpus/g2a -offset 90000 -limit 10000
+-arm a-strands -dir corpus/g2a -offset 90000 -limit 10000 -ablation failclosed

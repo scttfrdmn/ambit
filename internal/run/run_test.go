@@ -213,3 +213,15 @@ func TestRepairable(t *testing.T) {
 		}
 	}
 }
+
+func TestRepairableBedrock(t *testing.T) {
+	for e, want := range map[string]bool{
+		"bedrock: operation error Bedrock Runtime: InvokeModel, https response error StatusCode: 503, RequestID: x, ServiceUnavailableException: Bedrock is unable to process your request.": true,
+		"bedrock: failed to get rate limit token, retry quota exceeded, 1 available, 5 requested":                                                                                            true,
+		"bedrock: operation error Bedrock Runtime: InvokeModel, https response error StatusCode: 400, RequestID: x, ValidationException: malformed":                                          false,
+	} {
+		if got := Repairable(e); got != want {
+			t.Errorf("Repairable(%q) = %v, want %v", e, got, want)
+		}
+	}
+}

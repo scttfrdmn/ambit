@@ -13,19 +13,21 @@ import (
 )
 
 // Arm order in tables; arms not listed follow, sorted.
-var armOrder = []string{"b0", "b", "b-4b", "b-hosted", "b-strands", "a-local", "a-hosted", "a-strands", sharedArm, "a-local-ablation", "a-hosted-ablation"}
+var armOrder = []string{"b0", "b", "b-4b", "b-hosted", "b-strands", "b-safeguard", "a-local", "a-hosted", "a-strands", sharedArm, "a-d3", "a-safeguard",
+	"a-local-ablation", "a-hosted-ablation", "a-strands-ablation"}
 
 // The arms each gate expects. G1's Arm B is named b; G2's is b-4b.
 var (
 	g1Arms = []string{"b0", "b", "b-hosted", "a-local", "a-hosted"}
 	g2Arms = []string{"b0", "b-4b", "b-hosted", "b-strands", "a-local", "a-hosted", "a-strands", "a-local-ablation", "a-hosted-ablation"}
-	bArms  = []string{"b", "b-4b", "b-hosted", "b-strands"}
+	// b-safeguard was added on #33 (item 13) after the first G2 arms.
+	bArms = []string{"b", "b-4b", "b-hosted", "b-strands", "b-safeguard"}
 )
 
 // cannotRefuse lists arms with no refusal path: B0 has no model, and the
 // rest read a probability (Jebadiah's noul or Decider's pointer head).
 var cannotRefuse = map[string]bool{"b0": true, "b": true, "b-4b": true, "b-strands": true, "a-local": true,
-	"a-local-ablation": true, "a-strands": true, sharedArm: true}
+	"a-local-ablation": true, "a-strands": true, "a-strands-ablation": true, sharedArm: true, "a-d3": true}
 
 const structural = "cannot refuse (structural)"
 
@@ -150,7 +152,7 @@ func Build(c *Corpus, l *Loaded, opt Options) (string, map[string]any, error) {
 	// reads a different layout carrying the same information (checked by
 	// serialize.TestStrandsStateCarriesState), so it is noted, not compared.
 	law3 := false
-	for _, pair := range [][2]string{{"a-local", "a-hosted"}, {"a-local-ablation", "a-hosted-ablation"}} {
+	for _, pair := range [][2]string{{"a-local", "a-hosted"}, {"a-local", "a-d3"}, {"a-local", "a-safeguard"}, {"a-local-ablation", "a-hosted-ablation"}} {
 		x, y := l.Arms[pair[0]], l.Arms[pair[1]]
 		if x == nil || y == nil || x.state == nil || y.state == nil {
 			continue
