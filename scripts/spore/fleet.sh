@@ -32,6 +32,15 @@ key() {
 	echo "$arm ${off:-0} $((${off:-0} + ${lim:-0}))"
 }
 
+# server prints which model server a shard needs.
+server() {
+	case "$1" in
+	*"-arm a-strands"* | *"-arm b-strands"*) echo strands ;;
+	*"-arm a-local"* | *"-arm b-4b"* | *"-arm b "*) echo llama ;;
+	*) echo none ;;
+	esac
+}
+
 # done_keys lists the keys of finished, complete runs on this corpus.
 done_keys() {
 	for m in "$RESULTS"/*/manifest.json; do
@@ -70,15 +79,22 @@ while :; do
 		printf '%s\n' "${held[@]+"${held[@]}"}" | grep -qxF "$k" || todo+=("$l")
 	done
 	nlive=$(grep -c . <<<"$live")
-	log "done $(grep -c . "$STATE/done")/$(grep -c . "$QUEUE"), pending ${#pending[@]}, unassigned ${#todo[@]}, live instances $nlive"
+	total=$(grep -c . "$QUEUE")
+	log "done $((total - ${#pending[@]}))/$total, pending ${#pending[@]}, unassigned ${#todo[@]}, live instances $nlive"
 	if [ ${#pending[@]} -eq 0 ]; then
 		log "all shards done"
 		break
 	fi
 	while [ $nlive -lt "$W" ] && [ ${#todo[@]} -gt 0 ]; do
 		n=$(( $(ls "$STATE" | grep -E '^[0-9]+$' | sort -n | tail -1 || echo 0) + 1 ))
-		batch=("${todo[@]:0:$S}")
-		todo=("${todo[@]:$S}")
+		# An instance runs one model server: batch shards that need the same one.
+		kind=$(server "${todo[0]}")
+		batch=()
+		rest=()
+		for l in "${todo[@]}"; do
+			if [ ${#batch[@]} -lt "$S" ] && [ "$(server "$l")" = "$kind" ]; then batch+=("$l"); else rest+=("$l"); fi
+		done
+		todo=("${rest[@]+"${rest[@]}"}")
 		printf '%s\n' "${batch[@]}" >"$STATE/$n"
 		runs="$STATE/$n.runs"
 		{ grep -q -- '-arm [ab]-strands\|-arm b-strands' "$STATE/$n" && echo "#strands-cuda"; cat "$STATE/$n"; } >"$runs"
