@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -70,7 +71,12 @@ func New(ctx context.Context, region string) (*Client, error) {
 		config.WithRetryer(func() aws.Retryer {
 			// Throttling and 5xx are retried with backoff; the model's tail
 			// latency reaches about 15 s, so allow a minute per call.
-			return retry.AddWithMaxAttempts(retry.NewStandard(), 10)
+			// The SDK's client-side retry token bucket is off: under
+			// Bedrock's 503s it emptied and failed calls without trying them.
+			return retry.AddWithMaxAttempts(retry.NewStandard(func(o *retry.StandardOptions) {
+				o.RateLimiter = ratelimit.None
+				o.MaxBackoff = 30 * time.Second
+			}), 10)
 		}))
 	if err != nil {
 		return nil, err
