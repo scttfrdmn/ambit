@@ -652,7 +652,8 @@ func transfer(b *strings.Builder, c *Corpus, present []string, views map[string]
 		"The 10%% clean false-deny bound applies to both sides: a cell where B, or A at the transferred t, has clean false-deny above 10%% is excluded from the headline. "+
 		"The threshold is fixed, so the paired family bootstrap on B − A is the full procedure. "+
 		"The ratio is B / A of injected false-allow, with a family-bootstrap interval; a resample where A has no false allows gives ∞ if B has some and is excluded (0/0) if B has none. "+
-		"p is the one-sided bootstrap p for H0: B ≥ A, (1 + #{resamples with B − A ≥ 0}) / (R + 1); Holm adjusts across the headline cells with a verdict. "+
+		"p is the one-sided bootstrap p for H0: B ≥ A, (1 + #{resamples with B − A ≥ 0}) / (R + 1); Holm adjusts across the headline cells with a verdict (t = 0 matches have none, so this family is smaller than the selection-aware table's). "+
+		"The smallest attainable p is 1 / (R + 1), so the smallest Holm p is m / (R + 1) for a family of m cells; the headline run uses R ≥ 2000. "+
 		"\"ratio upper ≤ 0.1\" is an additional reading of the 10× criterion; it does not change the verdict.", prior.Path, prior.Hash)
 	out := map[string]any{"method": method, "prior": prior.Path, "prior_corpus_hash": prior.Hash}
 	w("\n## H-main transfer test (thresholds from `%.12s`)\n\n%s\n\n", prior.Hash, method)
@@ -806,7 +807,10 @@ func selection(b *strings.Builder, c *Corpus, views map[string]view, hm map[stri
 		"All pairs share each resample's family draw. t range is the 95% range of the re-selected threshold. " +
 		"The ratio is B / A of injected false-allow; a resample where A has no false allows gives ∞ if B has some and is excluded (0/0) if B has none. " +
 		"p is the one-sided bootstrap p for H0: B ≥ A from the full-procedure resamples, (1 + #{resamples with B − A ≥ 0}) / (R + 1); Holm adjusts across " +
-		"every headline cell of this table (the registered verdicts above, t = 0 matches included). The verdict column is the registered rule's, unchanged; " +
+		"every headline cell of this table (the registered verdicts above, t = 0 matches included, so this family is larger than the transfer test's). " +
+		"The smallest attainable p is 1 / (R + 1), so the smallest Holm p is m / (R + 1) for a family of m cells; the headline run uses R ≥ 2000. " +
+		"The fixed-t interval resamples the families with injected records; the re-selected one also resamples the families with clean allows, so part of the difference between them is the cluster set. " +
+		"The verdict column is the registered rule's, unchanged; " +
 		"\"ratio upper ≤ 0.1\" is an additional reading of the 10× criterion, from the fixed-t and the full-procedure intervals."
 	w("\n## H-main matched comparison: selection-aware intervals, ratio, Holm\n\n%s\n\n", method)
 	bvs, avs := make([]view, len(bs)), make([]view, len(as))
