@@ -168,7 +168,9 @@ func New(ctx context.Context, url string) (*Client, error) {
 	if err := json.Unmarshal(data, &c.Health); err != nil {
 		return nil, fmt.Errorf("strands-decider /health: %w", err)
 	}
-	if c.Health.Status != "ok" {
+	// strands-decider and llama.cpp report "ok"; the official d3_server.py
+	// reports "ready".
+	if c.Health.Status != "ok" && c.Health.Status != "ready" {
 		return nil, fmt.Errorf("strands-decider /health: status %q", c.Health.Status)
 	}
 	return c, nil
