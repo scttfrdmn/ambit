@@ -100,6 +100,7 @@ func cmdComputeCost(args []string) error {
 
 	// Each instance's GPU and whole job time, from its job log.
 	insts := map[string]*jobLog{}
+	skipped := map[string]int{} // shards with no job log, by arm
 	for _, sh := range shards {
 		if _, ok := insts[sh.host]; ok {
 			continue
@@ -129,6 +130,7 @@ func cmdComputeCost(args []string) error {
 	for _, sh := range shards {
 		in := insts[sh.host]
 		if in == nil {
+			skipped[sh.arm]++
 			continue
 		}
 		price, ok := onDemandPerHour[in.gpu]
@@ -150,14 +152,29 @@ func cmdComputeCost(args []string) error {
 		r.whole += whole * price.Price
 		r.gpus[in.gpu]++
 	}
+	// A priced arm must cover the corpus exactly once, or its row would
+	// price a different set of runs than the report scores.
+	n := 0
+	if err := corpus.Each(*dir, "records", func(json.RawMessage) error { n++; return nil }); err != nil {
+		return err
+	}
 	arms := make([]string, 0, len(rows))
-	for a := range rows {
+	for a, r := range rows {
+		if skipped[a] > 0 || r.decisions != n {
+			return fmt.Errorf("arm %s: priced shards decide %d of %d records (%d shards have no job log); not one cover of the corpus", a, r.decisions, n, skipped[a])
+		}
 		arms = append(arms, a)
 	}
 	sort.Strings(arms)
+	gpus := make([]string, 0, len(onDemandPerHour))
+	for g, p := range onDemandPerHour {
+		gpus = append(gpus, fmt.Sprintf("%s %s $%.4g/h", strings.TrimPrefix(strings.TrimPrefix(g, "NVIDIA "), "Tesla "), p.Type, p.Price))
+	}
+	sort.Strings(gpus)
 	fmt.Printf("Self-hosted GPU cost, corpus `%.12s`. Shard wall time on the instance that ran it, at the us-east-1 on-demand list price of the smallest instance with that GPU ", hash)
-	fmt.Printf("(L40S g6e.xlarge $1.861/h, A10G g5.xlarge $1.006/h, L4 g6.xlarge $0.8048/h, T4 g4dn.xlarge $0.526/h). ")
-	fmt.Printf("\"with setup\" spreads each instance's whole job time (weights download, server start) over its shards. Spot runs cost less; instance boot before the job is not counted.\n\n")
+	fmt.Printf("(%s). ", strings.Join(gpus, ", "))
+	fmt.Printf("\"with setup\" spreads each instance's whole job time (weights download, server start) over its shards. Spot runs cost less; instance boot before the job is not counted. ")
+	fmt.Printf("B0 calls no model; its shards only happened to run on a GPU instance.\n\n")
 	fmt.Println("| arm | decisions | GPU (shards) | GPU-hours | $ per 10k decisions | $ per 10k, with setup |")
 	fmt.Println("|---|---|---|---|---|---|")
 	for _, a := range arms {
@@ -169,6 +186,14 @@ func cmdComputeCost(args []string) error {
 		sort.Strings(gs)
 		k := float64(r.decisions) / 10000
 		fmt.Printf("| %s | %d | %s | %.1f | $%.2f | $%.2f |\n", a, r.decisions, strings.Join(gs, ", "), r.hours, r.cost/k, r.whole/k)
+	}
+	if len(skipped) > 0 {
+		var ss []string
+		for a, k := range skipped {
+			ss = append(ss, fmt.Sprintf("%s (%d shards)", a, k))
+		}
+		sort.Strings(ss)
+		fmt.Printf("\nNot priced here (no instance job log; hosted arms are priced by their API spend in the report): %s.\n", strings.Join(ss, ", "))
 	}
 	if dupRuns > 0 {
 		fmt.Printf("\nDuplicated runs: %d, %.1f run-hours (fleet relaunches of a range another complete run covers); the later run is the one scored and priced.\n", dupRuns, dupHours)
