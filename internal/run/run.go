@@ -46,10 +46,12 @@ type Manifest struct {
 	// RepairableErrors counts the errors Repairable accepts: transport and
 	// capacity failures a re-run would re-ask. The rest stay denials.
 	RepairableErrors int `json:"repairable_errors"`
-	// SpendMicros is the run's hosted spend.
-	SpendMicros int64  `json:"spend_micros"`
-	Stopped     string `json:"stopped,omitempty"`
-	Notes       string `json:"notes,omitempty"`
+	// SpendMicros is the run's hosted spend, and RunCapMicros the per-run
+	// hosted cap it ran under (-run-cap; absent before the flag existed).
+	SpendMicros  int64  `json:"spend_micros"`
+	RunCapMicros int64  `json:"run_cap_micros,omitempty"`
+	Stopped      string `json:"stopped,omitempty"`
+	Notes        string `json:"notes,omitempty"`
 	// RangeStart and RangeEnd bound the records decided, [start, end) in
 	// corpus order; Records is their count. A manifest without them (G1)
 	// covers the whole corpus.
@@ -89,8 +91,9 @@ type Options struct {
 	// RepairOf names the runs they come from.
 	IDs      map[string]bool
 	RepairOf []string
-	// Spent reports the run's hosted spend so far.
-	Spent func() int64
+	// Spent reports the run's hosted spend so far, under RunCapMicros.
+	Spent        func() int64
+	RunCapMicros int64
 	// Progress is called after each record, with the count decided so far.
 	Progress func(i, n int, d arms.Decision)
 }
@@ -138,7 +141,7 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 		return Manifest{}, err
 	}
 	workers := max(opt.Concurrency, 1)
-	commit, dirty := gitState()
+	commit, dirty := GitState()
 	host, _ := os.Hostname()
 	now := time.Now().UTC()
 	m := Manifest{
@@ -147,6 +150,7 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 		Started: now.Format(time.RFC3339), Records: end - start,
 		RangeStart: start, RangeEnd: end, Concurrency: workers, Host: host,
 		CachePrompt: opt.CachePrompt, ProseSHA256: opt.ProseSHA256, Ablation: opt.Ablation,
+		RunCapMicros: opt.RunCapMicros,
 	}
 	if opt.Offset > 0 || opt.Limit > 0 {
 		// A shard's name carries its range, so shards started together do
@@ -214,7 +218,7 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 					return err
 				}
 			}
-			if err := qw.Write(quillEntry(m.Run, j.i+1, j.r, d)); err != nil {
+			if err := qw.Write(QuillEntry(m.Run, j.i+1, j.r, d)); err != nil {
 				return err
 			}
 		}
@@ -247,7 +251,7 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 					if Repairable(d.Error) {
 						m.RepairableErrors++
 					}
-					if isSpendStop(d.Error) {
+					if IsSpendStop(d.Error) {
 						stop(d.Error)
 						mu.Unlock()
 						continue
@@ -297,10 +301,10 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 	return m, writeManifest()
 }
 
-// isSpendStop reports errors that would repeat on every remaining record:
+// IsSpendStop reports errors that would repeat on every remaining record:
 // a spend cap, or a hosted account that cannot be billed or is not
 // authorized. Recording them as decisions would score outages as denials.
-func isSpendStop(e string) bool {
+func IsSpendStop(e string) bool {
 	for _, s := range []string{"per-run cap", "project ceiling", "insufficient_quota", "credit_balance_exhausted", "401 Unauthorized", "403 Forbidden"} {
 		if strings.Contains(e, s) {
 			return true
@@ -309,10 +313,10 @@ func isSpendStop(e string) bool {
 	return false
 }
 
-// gitState returns the commit and whether tracked files differ from it. On
+// GitState returns the commit and whether tracked files differ from it. On
 // a spore.host instance there is no repository; scripts/spore/launch.sh
 // refuses a dirty tree and ships the commit in a GIT_COMMIT file instead.
-func gitState() (string, bool) {
+func GitState() (string, bool) {
 	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
 	if err != nil {
 		if b, ferr := os.ReadFile("GIT_COMMIT"); ferr == nil {
@@ -324,9 +328,9 @@ func gitState() (string, bool) {
 	return strings.TrimSpace(string(out)), len(strings.TrimSpace(string(st))) > 0
 }
 
-// quillEntry records a Cedar decision in LKI's audit format. PIP-supplied
+// QuillEntry records a Cedar decision in LKI's audit format. PIP-supplied
 // facts go in observed_state["pip"], with their probabilities.
-func quillEntry(run string, n int, r corpus.Record, d arms.Decision) *quill.Entry {
+func QuillEntry(run string, n int, r corpus.Record, d arms.Decision) *quill.Entry {
 	f := r.Facts
 	actor := f.Chain[len(f.Chain)-1]
 	chain := make([]string, len(f.Chain))

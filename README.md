@@ -108,6 +108,36 @@ bootstrap intervals over scenario families. The report also covers:
 - PIP fact accuracy;
 - the registered hypotheses.
 
+### `ambit swarm` and `ambit swarm-report` (G3)
+
+`ambit swarm -arm b0 -agents 1000` runs a live agenkit swarm of N agents
+with every tool call gated by the arm. The swarm is a seeded script (the
+registered seed 20261021 and K = 4 by default): one tree per task, down to
+depth 3, with K work calls per agent. It takes every arm and gate flag
+`ambit run` takes, built by the same code. `-concurrency n` caps the gate
+calls in flight (0, the default, sets no cap); `-serial` makes an
+uncontended reference run; `-instance-type` and `-server-slots` are
+recorded for the cost and the scaled-server secondary. Hosted arms spend
+against `<results>/spend.jsonl` under `-run-cap` (dollars, default 5, at
+most 15) and `-ceiling`, as `ambit run` does. Outputs go to
+`<results>/<arm>-swarm-<N>[-serial]-<timestamp>/`:
+
+- `manifest.json`: script hash, policy corpus hash, git commit, models,
+  N, K, seed, concurrency, throughput, errors (repairable apart), spend.
+- `calls.jsonl`: one line per gated call, with the record the gate saw,
+  its decision and latency, and the oracle's verdict.
+- `tasks.jsonl`: each task's critical path, split by depth.
+- `quill.jsonl`: one LKI quill entry per Cedar decision (B0, B arms).
+- `raw.jsonl`: every model reply, verbatim.
+
+`ambit swarm-report -results dir` writes `swarm-report.md` and
+`swarm-report.json`: the registered H-scale rules of #21 per part and per
+(B, A) pair, gate latency by N, critical path by depth, accuracy against
+the oracle, depth breaches, cap overshoot, cost, auditability, and any
+scaled-server runs apart from the verdicts.
+
+`ambit run` also takes `-run-cap`.
+
 ### `make test`
 
 Runs the unit tests.

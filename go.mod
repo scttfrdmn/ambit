@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.63.4
 	github.com/cedar-policy/cedar-go v1.6.1
+	github.com/scttfrdmn/agenkit-go v0.92.0
 )
 
 require (
@@ -23,5 +24,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.4 // indirect
 	github.com/aws/smithy-go v1.28.5 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	golang.org/x/exp v0.0.0-20220921023135-46d9e7742f1e // indirect
+	gonum.org/v1/gonum v0.17.0 // indirect
 )
