@@ -1,0 +1,22 @@
+{
+  "run": "a-hosted-20261019T231332Z-820000-840000",
+  "arm": "a-hosted",
+  "corpus_hash": "f5fdd0309581055711be01177fab0ed18be7d953f12ce9168f02735bd2389a02",
+  "git_commit": "a075ee343f0a8ef9be73311610d9af48138579fb",
+  "git_dirty": false,
+  "models": {
+    "hosted": "openai/decisions/gpt-6-luna"
+  },
+  "started": "2026-10-19T23:13:32Z",
+  "finished": "2026-10-19T23:18:20Z",
+  "records": 20000,
+  "decided": 20000,
+  "errors": 0,
+  "spend_micros": 3216657,
+  "range_start": 820000,
+  "range_end": 840000,
+  "concurrency": 8,
+  "host": "terror",
+  "cache_prompt": false,
+  "prose_sha256": "d3ca2424fe05e801bbd7159533a7da316847862e2a917cc9a0bb869240d54385"
+}

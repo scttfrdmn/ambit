@@ -1,0 +1,18 @@
+{
+  "run": "b0-20261019T035533Z-0-1000000",
+  "arm": "b0",
+  "corpus_hash": "f5fdd0309581055711be01177fab0ed18be7d953f12ce9168f02735bd2389a02",
+  "git_commit": "97c7793b3a5167dc39e814313946a4b9021add5a",
+  "git_dirty": false,
+  "started": "2026-10-19T03:55:33Z",
+  "finished": "2026-10-19T03:59:18Z",
+  "records": 1000000,
+  "decided": 1000000,
+  "errors": 0,
+  "spend_micros": 0,
+  "range_start": 0,
+  "range_end": 1000000,
+  "concurrency": 1,
+  "host": "g2b-b-1",
+  "cache_prompt": false
+}

@@ -1,0 +1,22 @@
+{
+  "run": "a-d3-20261020T133227Z-795000-800000",
+  "arm": "a-d3",
+  "corpus_hash": "f5fdd0309581055711be01177fab0ed18be7d953f12ce9168f02735bd2389a02",
+  "git_commit": "acdf36f0399871828f1f57fe666541f74e901c80",
+  "git_dirty": false,
+  "models": {
+    "d3": "ggml-org/vllm-d3-GGUF/vllm-d3-Q8_0.gguf@de9670136f5ddd83e677c89ce041d5b9bb3b0dcb base vllm-sr/d3@cf15549a78fc52598ddd1951f321c58372bbd64f server llama.cpp b11669 (620d2225) server-cuda image sha256:e4cfff28678327b0ae7eda129e700e56a0fa55aa23db2f016256ea155c15c2b5; GGUF sha256 82130d83cb6f31d43a742a08f737a78c087e408776115b6f28e5d3bc27617805"
+  },
+  "started": "2026-10-20T13:32:27Z",
+  "finished": "2026-10-20T14:20:44Z",
+  "records": 5000,
+  "decided": 5000,
+  "errors": 0,
+  "spend_micros": 0,
+  "range_start": 795000,
+  "range_end": 800000,
+  "concurrency": 1,
+  "host": "g2b-d3-57",
+  "cache_prompt": false,
+  "prose_sha256": "d3ca2424fe05e801bbd7159533a7da316847862e2a917cc9a0bb869240d54385"
+}

@@ -89,6 +89,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Exploratory B-arm curves over the PIP acceptance threshold, and
       calibration tables.
     - `-replicate`: a replication table against a prior report.
+- `ambit compute-cost`: GPU cost of the self-hosted arms per 10k decisions,
+  from each run's wall time and the GPU its instance's job log names, at
+  on-demand list price (#33).
+- G2b results at 10⁶ (`results/g2b/`): manifests, decisions, the report,
+  GPU cost, and the manifests of quarantined shards.
 - `scripts/spore`, which runs work on spore.host:
   - Stages a bundle and a runs file, then launches spot GPU instances with
     a TTL, a cost limit of at most $20, a `project=ambit` tag and a scoped

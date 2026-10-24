@@ -40,6 +40,8 @@ func main() {
 		err = cmdReport(os.Args[2:])
 	case "state":
 		err = cmdState(os.Args[2:])
+	case "compute-cost":
+		err = cmdComputeCost(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
