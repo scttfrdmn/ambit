@@ -1,0 +1,21 @@
+{
+  "run": "b-safeguard-20261020T024953Z-600000-620000",
+  "arm": "b-safeguard",
+  "corpus_hash": "f5fdd0309581055711be01177fab0ed18be7d953f12ce9168f02735bd2389a02",
+  "git_commit": "acdf36f0399871828f1f57fe666541f74e901c80",
+  "git_dirty": false,
+  "models": {
+    "safeguard": "bedrock/openai.gpt-oss-safeguard-120b effort low region us-east-1; cost axis at list price (internal account)"
+  },
+  "started": "2026-10-20T02:49:53Z",
+  "finished": "2026-10-20T02:58:03Z",
+  "records": 20000,
+  "decided": 20000,
+  "errors": 0,
+  "spend_micros": 0,
+  "range_start": 600000,
+  "range_end": 620000,
+  "concurrency": 12,
+  "host": "terror",
+  "cache_prompt": false
+}

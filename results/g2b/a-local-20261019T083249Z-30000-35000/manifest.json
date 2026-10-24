@@ -1,0 +1,22 @@
+{
+  "run": "a-local-20261019T083249Z-30000-35000",
+  "arm": "a-local",
+  "corpus_hash": "f5fdd0309581055711be01177fab0ed18be7d953f12ce9168f02735bd2389a02",
+  "git_commit": "b6863347e5513f3d28d33736acc908b1f0e2b30d",
+  "git_dirty": false,
+  "models": {
+    "jebadiah": "frontier-infra/jebadiah-4b-v2-GGUF@446099f37ca1cea4324d8866b44a1dbc15f77c94/jebadiah-4b-v2-Q8_0.gguf sha256:36f4a54fe07ed79b186a2128bfb1598ba210b1ab0a945296069a4e5cdbb9875a"
+  },
+  "started": "2026-10-19T08:32:49Z",
+  "finished": "2026-10-19T08:48:32Z",
+  "records": 5000,
+  "decided": 5000,
+  "errors": 0,
+  "spend_micros": 0,
+  "range_start": 30000,
+  "range_end": 35000,
+  "concurrency": 16,
+  "host": "g2b-a-2",
+  "cache_prompt": true,
+  "prose_sha256": "d3ca2424fe05e801bbd7159533a7da316847862e2a917cc9a0bb869240d54385"
+}
