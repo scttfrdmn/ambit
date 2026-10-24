@@ -29,6 +29,17 @@ TYPE="${AMBIT_INSTANCE:-g6.xlarge}"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 BUCKET="spawn-results-$ACCOUNT-$REGION"
 STAGE="s3://$BUCKET/ambit/$NAME"
+# The sweep after a failed launch terminates every instance tagged with this
+# run name, so a name that is already live is refused rather than swept.
+live=$(aws ec2 describe-instances --region "$REGION" \
+	--filters "Name=tag:project,Values=ambit" "Name=tag:run,Values=$NAME" \
+	"Name=instance-state-name,Values=pending,running,stopping,stopped" \
+	--query 'Reservations[].Instances[].InstanceId' --output text) ||
+	{ echo "cannot check for a live $NAME in $REGION" >&2; exit 1; }
+if [ -n "$live" ]; then
+	echo "an instance of $NAME is already live in $REGION; choose another name" >&2
+	exit 1
+fi
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/ambit-stage.XXXXXX")
 trap 'rm -rf "$TMP"' EXIT
 
@@ -59,17 +70,24 @@ CMD="aws s3 cp $STAGE/gpu-job.sh /tmp/gpu-job.sh --quiet && bash /tmp/gpu-job.sh
 PURCHASE=(--spot)
 [ "${AMBIT_SPOT:-1}" = 0 ] && PURCHASE=()
 [ -n "${AMBIT_AZ:-}" ] && PURCHASE+=(--az "$AMBIT_AZ")
-spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
+if ! spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
 	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate \
 	--volume-size "${AMBIT_VOLUME:-80}" --tag project=ambit --tag "run=$NAME" \
 	--s3-read "$BUCKET" --s3-write "$BUCKET" \
-	--command "$CMD" -y
+	--command "$CMD" -y; then
+	# spawn can create the instance and still report failure; nothing would
+	# watch it (on 2026-10-20 one ran 74 h past its TTL). Give EC2 a minute
+	# to show it, then terminate whatever this attempt left.
+	sleep 60
+	scripts/spore/sweep.sh "$NAME" "$REGION" >&2
+	exit 1
+fi
 # Local backstop: terminate the instance through the EC2 API 15 minutes past
 # its TTL if it is still alive (see deadman.sh).
 mkdir -p "$HOME/.xtmp/ambit-logs"
 # Run private copies: bash reads a script as it executes, so editing
 # deadman.sh during the watcher's sleep would corrupt it.
 DM="$HOME/.xtmp/ambit-logs/deadman-$NAME"
-mkdir -p "$DM" && cp scripts/spore/deadman.sh scripts/spore/ttl.sh "$DM/"
+mkdir -p "$DM" && cp scripts/spore/deadman.sh scripts/spore/ttl.sh scripts/spore/sweep.sh "$DM/"
 nohup "$DM/deadman.sh" "$NAME" "$REGION" "$TTL" >"$DM.log" 2>&1 &
 echo "staged at $STAGE; logs at $STAGE/out/<host>/job.log; dead-man watcher pid $!"

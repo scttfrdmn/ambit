@@ -6,6 +6,9 @@
 #   scripts/spore/fleet.sh <fleet-name> <corpus-dir> <queue-file> <results-dir> \
 #       <instances> <shards-per-instance> <ttl> <cost-limit>
 #
+# MAXTRIES (default 3) bounds the finished-with-errors runs of any one shard;
+# a fleet that gives up on a shard exits 3.
+#
 # <queue-file> has one shard per line, in `ambit run` arguments, each with an
 # explicit -offset and -limit. A shard is done when <results-dir> holds a
 # finished manifest with the same arm, range and corpus. The fleet log goes
@@ -41,12 +44,27 @@ server() {
 	esac
 }
 
-# done_keys lists the keys of finished, complete runs on this corpus.
+# done_keys lists the keys of finished, complete runs on this corpus with no
+# repairable gate errors (run.Repairable: transport and capacity failures).
+# A run whose model server crashed decides every record as such an error;
+# counting it done (as on 2026-10-19) hid 5,000 errors per shard. A shard
+# with one is re-run in full, which re-asks exactly those errors. Other gate
+# errors stay denials and repeat on a re-run, so they do not block a shard.
+# Manifests from before the repairable count fall back to all errors.
 done_keys() {
 	for m in "$RESULTS"/*/manifest.json; do
 		[ -f "$m" ] || continue
-		jq -r --arg h "$HASH" 'select(.corpus_hash == $h and .finished != null and .decided == .records and (.stopped // "") == "" and ((.repair_of // []) | length) == 0) | "\(.arm) \(.range_start) \(.range_end)"' "$m"
+		jq -r --arg h "$HASH" 'select(.corpus_hash == $h and .finished != null and .decided == .records and (.repairable_errors // .errors) == 0 and (.stopped // "") == "" and ((.repair_of // []) | length) == 0) | "\(.arm) \(.range_start) \(.range_end)"' "$m"
 	done | sort -u
+}
+
+# errored_keys lists, once per run, the keys of finished, complete runs that
+# still have repairable errors.
+errored_keys() {
+	for m in "$RESULTS"/*/manifest.json; do
+		[ -f "$m" ] || continue
+		jq -r --arg h "$HASH" 'select(.corpus_hash == $h and .finished != null and .decided == .records and (.repairable_errors // .errors) > 0 and (.stopped // "") == "" and ((.repair_of // []) | length) == 0) | "\(.arm) \(.range_start) \(.range_end)"' "$m"
+	done
 }
 
 alive() { # instance names of this fleet that are not terminated
@@ -73,17 +91,32 @@ while :; do
 			while IFS= read -r l; do held+=("$(key "$l")"); done <"$STATE/$inst"
 		fi
 	done
+	# A shard that finished MAXTRIES times with repairable errors (a model
+	# server that crashes on it every time) is given up on, not relaunched
+	# forever. Spot interruptions leave no finished run, so they do not count:
+	# at G2 a shard took up to 9 launches to finish.
+	errored=$(errored_keys)
 	todo=()
+	gaveup=0
 	for l in "${pending[@]+"${pending[@]}"}"; do
 		k=$(key "$l")
-		printf '%s\n' "${held[@]+"${held[@]}"}" | grep -qxF "$k" || todo+=("$l")
+		printf '%s\n' "${held[@]+"${held[@]}"}" | grep -qxF "$k" && continue
+		if [ "$(grep -cxF "$k" <<<"$errored")" -ge "${MAXTRIES:-3}" ]; then
+			gaveup=$((gaveup + 1))
+			continue
+		fi
+		todo+=("$l")
 	done
 	nlive=$(grep -c . <<<"$live")
 	total=$(grep -c . "$QUEUE")
-	log "done $((total - ${#pending[@]}))/$total, pending ${#pending[@]}, unassigned ${#todo[@]}, live instances $nlive"
+	log "done $((total - ${#pending[@]}))/$total, pending ${#pending[@]}, unassigned ${#todo[@]}, given up $gaveup, live instances $nlive"
 	if [ ${#pending[@]} -eq 0 ]; then
 		log "all shards done"
 		break
+	fi
+	if [ ${#todo[@]} -eq 0 ] && [ "$nlive" -eq 0 ] && [ "$gaveup" -gt 0 ]; then
+		log "stopping: $gaveup shards finished ${MAXTRIES:-3} times each with repairable errors; see their runs"
+		exit 3
 	fi
 	while [ $nlive -lt "$W" ] && [ ${#todo[@]} -gt 0 ]; do
 		n=$(( $(ls "$STATE" | grep -E '^[0-9]+$' | sort -n | tail -1 || echo 0) + 1 ))

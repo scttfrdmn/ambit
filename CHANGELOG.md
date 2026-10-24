@@ -111,3 +111,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the registered H-main as the G1 metric.
   - Arms that cannot refuse show "cannot refuse (structural)".
   - The G1 numbers are unchanged.
+
+### Fixed
+
+- spore.host fleet defects found during G2 (#33):
+  - A shard counts as done only if it has no repairable gate errors. A
+    crashed model server no longer passes as 5,000 decided records. Run
+    manifests now count repairable errors separately. A shard that finishes
+    three times with repairable errors is given up on, not relaunched
+    forever.
+  - `fetch.sh` fetches outputs from every region, not the first region that
+    has a stage.
+  - A launch that spawn reports as failed is swept for any instance it
+    created (`sweep.sh`). `try-launch.sh` sweeps the other regions after a
+    success, and the dead-man watcher checks every region. `launch.sh`
+    refuses a run name that is already live.

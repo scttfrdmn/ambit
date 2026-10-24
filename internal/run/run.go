@@ -43,6 +43,9 @@ type Manifest struct {
 	Records    int               `json:"records"`
 	Decided    int               `json:"decided"`
 	Errors     int               `json:"errors"`
+	// RepairableErrors counts the errors Repairable accepts: transport and
+	// capacity failures a re-run would re-ask. The rest stay denials.
+	RepairableErrors int `json:"repairable_errors"`
 	// SpendMicros is the run's hosted spend.
 	SpendMicros int64  `json:"spend_micros"`
 	Stopped     string `json:"stopped,omitempty"`
@@ -241,6 +244,9 @@ func Run(ctx context.Context, g arms.Gate, opt Options) (Manifest, error) {
 				mu.Lock()
 				if d.Error != "" {
 					m.Errors++
+					if Repairable(d.Error) {
+						m.RepairableErrors++
+					}
 					if isSpendStop(d.Error) {
 						stop(d.Error)
 						mu.Unlock()
