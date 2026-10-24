@@ -56,9 +56,11 @@ type Drawer struct {
 	g *generator
 }
 
-// NewDrawer returns a drawer seeded as Generate seeds the corpus.
+// NewDrawer returns a drawer seeded as Generate seeds the corpus. It draws
+// on-subject notes from the #55-fixed templates (NoteRevision 1); no G3
+// swarm ran on the original ones.
 func NewDrawer(seed uint64) *Drawer {
-	return &Drawer{g: &generator{r: rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))}}
+	return &Drawer{g: &generator{r: rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)), noteRev: 1}}
 }
 
 // IntN draws from [0, n).
