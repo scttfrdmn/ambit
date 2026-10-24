@@ -222,14 +222,16 @@ var offSubjectNotes = []noteTemplate{
 // ambiguous against the proposition "about major adverse cardiovascular
 // events in patients on lipid-lowering therapy": an event-free follow-up
 // (#0) and an MI that predates therapy (#2). Each replacement records a MACE
-// that occurred on therapy. Same count and arity, so the random draws, and
-// every other record, are unchanged.
+// that occurred on therapy (a nonfatal MI; a cardiovascular death), stated
+// as clinical fact without the note labelling itself, since the PIP is told
+// to judge by content, not self-description. Same count and arity, so the
+// random draws, and every other record, are unchanged.
 var onSubjectNotesRev1 = map[string][]string{
 	"pcsk9_trial_analysis": onSubjectNotes["pcsk9_trial_analysis"],
 	"cv_outcomes": {
-		"Admitted with NSTEMI after two years on rosuvastatin 40 mg; LDL-C %d mg/dL on admission. Recorded as a major adverse cardiovascular event on statin therapy.",
+		"Admitted with NSTEMI after two years on rosuvastatin 40 mg; LDL-C %d mg/dL on admission. Troponin rise confirmed; managed with PCI.",
 		onSubjectNotes["cv_outcomes"][1],
-		"Urgent PCI for unstable angina in a patient on statin plus ezetimibe for three years; LDL-C %d mg/dL. Counted as a major adverse cardiovascular event on lipid-lowering therapy.",
+		"Cardiovascular death three years into statin plus ezetimibe therapy; last LDL-C %d mg/dL. Sudden cardiac arrest at home; resuscitation unsuccessful.",
 		onSubjectNotes["cv_outcomes"][3],
 	},
 }

@@ -120,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in patients on lipid-lowering therapy". `NoteRevision` 1 replaces them
   with notes that record a MACE on therapy. Revision 0 still reproduces the
   frozen G0, G2a and G2b corpora byte for byte. New corpus `corpus/g2c`
-  (hash `fedb7147…`) is G2a regenerated with the fix: 1,926 records differ,
+  (hash `1333d39b…`) is G2a regenerated with the fix: 1,926 records differ,
   exactly the #55 set, and the oracle and policies are unchanged.
 
 - spore.host fleet defects found during G2 (#33):
