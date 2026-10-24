@@ -1,6 +1,7 @@
 package report
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,7 +68,8 @@ var onDemandUSDPerHour = map[string]float64{
 	"g6e.xlarge": 1.861, "g6.xlarge": 0.8048, "g6.2xlarge": 0.9776, "g5.xlarge": 1.006, "g4dn.xlarge": 0.526,
 }
 
-// SwarmRun is one complete swarm run.
+// SwarmRun is one swarm run: a complete one, scored, or an incomplete one,
+// listed only.
 type SwarmRun struct {
 	Dir      string
 	Manifest swarm.Manifest
@@ -76,7 +78,15 @@ type SwarmRun struct {
 	// QuillDet maps a call ID to whether its quill entry names a
 	// determining policy; nil if the run has no quill.jsonl.
 	QuillDet map[string]bool
+	// RecordedCalls is, for an incomplete run, the calls its calls.jsonl
+	// holds (streamed as the run went); its Calls and Tasks are not loaded.
+	RecordedCalls int
 }
+
+// Incomplete reports whether the run did not finish: its manifest is
+// unfinished (killed, or still running) or it stopped early. An incomplete
+// run never enters a verdict.
+func (r *SwarmRun) Incomplete() bool { return r.Manifest.Finished == "" || r.Manifest.Stopped != "" }
 
 // InstrumentFailure reports whether the run's repairable errors exceed 1%
 // of its gate calls (#21): it is re-run, and its numbers decide nothing.
@@ -85,14 +95,16 @@ func (r *SwarmRun) InstrumentFailure() bool {
 }
 
 // LoadSwarm reads the latest complete swarm run of each arm at each N
-// under dir, measured and serial reference runs apart. A run is complete if
-// its manifest is finished and it did not stop early.
+// under dir, measured and serial reference runs apart, and every incomplete
+// run (Incomplete) with the count of the calls it streamed. A run is
+// complete if its manifest is finished and it did not stop early.
 func LoadSwarm(dir string) ([]*SwarmRun, error) {
 	mfs, err := filepath.Glob(filepath.Join(dir, "*", "manifest.json"))
 	if err != nil {
 		return nil, err
 	}
 	latest := map[string]*SwarmRun{}
+	var incomplete []*SwarmRun
 	for _, mf := range mfs {
 		b, err := os.ReadFile(mf)
 		if err != nil {
@@ -102,7 +114,14 @@ func LoadSwarm(dir string) ([]*SwarmRun, error) {
 		if err := json.Unmarshal(b, &m); err != nil {
 			return nil, fmt.Errorf("%s: %w", mf, err)
 		}
-		if m.Kind != swarm.ManifestKind || m.Finished == "" || m.Stopped != "" {
+		if m.Kind != swarm.ManifestKind {
+			continue
+		}
+		if r := (&SwarmRun{Dir: filepath.Dir(mf), Manifest: m}); r.Incomplete() {
+			if r.RecordedCalls, err = countCalls(filepath.Join(r.Dir, "calls.jsonl")); err != nil {
+				return nil, fmt.Errorf("%s: %w", r.Dir, err)
+			}
+			incomplete = append(incomplete, r)
 			continue
 		}
 		key := fmt.Sprintf("%s/%d/%v/%v", m.Arm, m.Script.Agents, m.Serial, m.ScaledServers)
@@ -123,6 +142,7 @@ func LoadSwarm(dir string) ([]*SwarmRun, error) {
 		}
 		out = append(out, r)
 	}
+	out = append(out, incomplete...)
 	slices.SortFunc(out, func(a, b *SwarmRun) int {
 		if c := armRank(a.Manifest.Arm) - armRank(b.Manifest.Arm); c != 0 {
 			return c
@@ -145,9 +165,40 @@ func LoadSwarm(dir string) ([]*SwarmRun, error) {
 			}
 			return 1
 		}
-		return 0
+		return strings.Compare(a.Manifest.Started, b.Manifest.Started)
 	})
 	return out, nil
+}
+
+// countCalls counts the calls in an incomplete run's calls.jsonl, streamed
+// as the run went. A last line cut short by the kill is not counted; a
+// missing file counts none.
+func countCalls(path string) (int, error) {
+	f, err := os.Open(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1<<20), 1<<24)
+	n, bad := 0, 0
+	for line := 1; sc.Scan(); line++ {
+		if bad > 0 {
+			return n, fmt.Errorf("%s line %d: unreadable line before the last", path, bad)
+		}
+		var c struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(sc.Bytes(), &c) != nil || c.ID == "" {
+			bad = line
+			continue
+		}
+		n++
+	}
+	return n, sc.Err()
 }
 
 // readQuillDet reads a quill log into call ID -> whether the entry's final
@@ -179,8 +230,16 @@ func armRank(a string) int {
 	return len(armOrder)
 }
 
-func isBArm(a string) bool { return strings.HasPrefix(a, "b") }
+// isBArm reports whether a is a Cedar arm (B0, G1's b, or a b- arm), which
+// writes a quill; isAArm whether it is a decision-model arm. Neither decides
+// verdict membership: only swarmBArms and swarmAArms enter verdicts.
+func isBArm(a string) bool { return a == "b0" || a == "b" || strings.HasPrefix(a, "b-") }
 func isAArm(a string) bool { return strings.HasPrefix(a, "a-") }
+
+// registeredArm reports whether a is one of the ten registered G3 arms.
+func registeredArm(a string) bool {
+	return slices.Contains(swarmBArms, a) || slices.Contains(swarmAArms, a)
+}
 
 func ms(ns float64) float64 { return ns / 1e6 }
 
@@ -407,6 +466,9 @@ const (
 	partNo          = "no"
 	partNotMeasured = "not measured"
 	partInstrument  = "instrument failure (re-run)"
+	// partScriptDiffers: the runs a part compares ran different scripts,
+	// so their tasks are not the same and cannot be paired (Law 3).
+	partScriptDiffers = "not measured (script differs)"
 )
 
 // part is one registered condition's outcome, with the numbers behind it.
@@ -441,6 +503,14 @@ func BuildSwarm(runs []*SwarmRun, opt Options) (string, map[string]any) {
 	var b strings.Builder
 	w := func(format string, a ...any) { fmt.Fprintf(&b, format, a...) }
 	data := map[string]any{"resamples": opt.Resamples}
+	var incomplete []*SwarmRun
+	runs = slices.DeleteFunc(slices.Clone(runs), func(r *SwarmRun) bool {
+		if r.Incomplete() {
+			incomplete = append(incomplete, r)
+			return true
+		}
+		return false
+	})
 
 	// A scaled-server run (G3 secondary) says so in its manifest
 	// (-scaled-servers). It is kept out of the registered verdicts and
@@ -460,6 +530,9 @@ func BuildSwarm(runs []*SwarmRun, opt Options) (string, map[string]any) {
 			continue
 		default:
 			measured = append(measured, r)
+		}
+		if !registeredArm(m.Arm) {
+			continue // listed under other runs, never in a verdict
 		}
 		if dst[m.Arm] == nil {
 			dst[m.Arm] = map[int]*SwarmRun{}
@@ -503,7 +576,7 @@ func BuildSwarm(runs []*SwarmRun, opt Options) (string, map[string]any) {
 			short(m.ScriptSHA256), short(m.CorpusHash), m.Tasks, m.Gated, m.AgentsRan, m.ProbesRan, conc, orDash(m.InstanceType), slotsLabel(m.ServerSlots, isScaled(r)),
 			float64(m.WallNS)/1e9, m.Throughput, float64(m.SwarmSpent)/1e6, float64(m.SwarmCap)/1e6, m.Errors, m.RepairableErrors, inst,
 			m.QuillEntries, strings.Join(models, "; "))
-		if !m.Serial && !isScaled(r) {
+		if !m.Serial && !isScaled(r) && registeredArm(m.Arm) {
 			if scripts[m.Script.Agents] == nil {
 				scripts[m.Script.Agents] = map[string]bool{}
 			}
@@ -516,9 +589,10 @@ func BuildSwarm(runs []*SwarmRun, opt Options) (string, map[string]any) {
 			"quill_entries": m.QuillEntries, "server_slots": m.ServerSlots, "scaled_servers": isScaled(r), "run_cap_micros": m.RunCapMicros})
 	}
 	data["runs"] = runsData
+	data["incomplete"] = incompleteRuns(&b, incomplete)
 	for _, n := range sortedKeys(scripts) {
 		if len(scripts[n]) > 1 {
-			w("\n**Warning:** the arms at N = %d ran different scripts (%d distinct hashes), so their calls differ (Law 3).\n", n, len(scripts[n]))
+			w("\n**Warning:** the registered arms at N = %d ran different scripts (%d distinct hashes), so their calls differ (Law 3); paired comparisons between them are not measured.\n", n, len(scripts[n]))
 		}
 	}
 
@@ -591,6 +665,7 @@ func BuildSwarm(runs []*SwarmRun, opt Options) (string, map[string]any) {
 	hData := hScale(&b, at, serialAt, p50s, p50Draws, opt.Resamples)
 	data["h_scale"] = hData
 	data["scaled_servers"] = scaledServers(&b, scaled, at, p50s, opt.Resamples)
+	data["other_runs"] = otherRuns(&b, runs, p50s, opt.Resamples)
 
 	// Reported, no verdict.
 	data["correctness"] = swarmCorrectness(&b, measured, opt.Resamples)
@@ -606,15 +681,8 @@ func BuildSwarm(runs []*SwarmRun, opt Options) (string, map[string]any) {
 func hScale(b *strings.Builder, at, serialAt map[string]map[int]*SwarmRun, p50s map[*SwarmRun]Estimate,
 	p50Draws map[*SwarmRun][]float64, resamples int) map[string]any {
 	w := func(format string, a ...any) { fmt.Fprintf(b, format, a...) }
-	bArms, aArms := slices.Clone(swarmBArms), slices.Clone(swarmAArms)
-	for _, a := range sortedKeys(at) {
-		switch {
-		case isBArm(a) && !slices.Contains(bArms, a):
-			bArms = append(bArms, a)
-		case isAArm(a) && !slices.Contains(aArms, a):
-			aArms = append(aArms, a)
-		}
-	}
+	// Only the registered arms enter verdicts (otherRuns lists the rest).
+	bArms, aArms := swarmBArms, swarmAArms
 	failed := func(rs ...*SwarmRun) bool {
 		for _, r := range rs {
 			if r.InstrumentFailure() {
@@ -640,9 +708,9 @@ func hScale(b *strings.Builder, at, serialAt map[string]map[int]*SwarmRun, p50s 
 		e := p50s[r]
 		serialData[a] = e.json()
 		switch {
-		case isBArm(a) && e.Est >= hScaleBMaxMS:
+		case slices.Contains(bArms, a) && e.Est >= hScaleBMaxMS:
 			serialNote[a] = fmt.Sprintf("serial reference p50 at N = %d is already %.3f ms, not under %.0f ms: a property of the system, not of scale", hScaleBaseN, e.Est, hScaleBMaxMS)
-		case isAArm(a) && !(e.Est > hScaleAMinMS):
+		case slices.Contains(aArms, a) && !(e.Est > hScaleAMinMS):
 			serialNote[a] = fmt.Sprintf("serial reference p50 at N = %d is already %.3f ms, not above %.0f ms: a property of the system, not of scale", hScaleBaseN, e.Est, hScaleAMinMS)
 		}
 	}
@@ -721,7 +789,7 @@ func hScale(b *strings.Builder, at, serialAt map[string]map[int]*SwarmRun, p50s 
 		if ra != nil {
 			e = slopes[a]
 			p.Detail = "slope " + e.String()
-			anyNo, missing, instr := !(e.Lo > 0), false, failed(ra)
+			anyNo, missing, instr, differs := !(e.Lo > 0), false, failed(ra), false
 			if math.IsNaN(e.Lo) {
 				anyNo, missing = false, true
 			}
@@ -734,6 +802,14 @@ func hScale(b *strings.Builder, at, serialAt map[string]map[int]*SwarmRun, p50s 
 					continue
 				}
 				instr = instr || failed(rb)
+				if rb.Manifest.ScriptSHA256 != ra.Manifest.ScriptSHA256 {
+					// Coincident task IDs of different scripts are not
+					// the same tasks: no paired difference.
+					differs = true
+					cells = append(cells, partScriptDiffers)
+					diffs[ba] = partScriptDiffers
+					continue
+				}
 				d := slopeDiff(ra, rb, resamples, seedFor("swarm-slope-diff", a, ba))
 				cells = append(cells, d.String())
 				diffs[ba] = d.json()
@@ -749,6 +825,9 @@ func hScale(b *strings.Builder, at, serialAt map[string]map[int]*SwarmRun, p50s 
 				p.Value = partInstrument
 			case anyNo:
 				p.Value = partNo
+			case differs:
+				p.Value = partScriptDiffers
+				p.Detail += "; a B arm at N = 1,000 ran a different script"
 			case missing:
 				p.Value = partNotMeasured
 				p.Detail += "; not every B arm measured at N = 1,000"
@@ -780,7 +859,7 @@ func hScale(b *strings.Builder, at, serialAt map[string]map[int]*SwarmRun, p50s 
 		e := nanEstimate
 		p := part{Value: partNotMeasured, Detail: fmt.Sprintf("needs a run at N = %d", hScaleN)}
 		threshold := fmt.Sprintf("upper bound < %.0f ms", hScaleBMaxMS)
-		if isAArm(a) {
+		if slices.Contains(aArms, a) {
 			threshold = fmt.Sprintf("lower bound > %.0f ms", hScaleAMinMS)
 		}
 		if r != nil {
@@ -789,7 +868,7 @@ func hScale(b *strings.Builder, at, serialAt map[string]map[int]*SwarmRun, p50s 
 			switch {
 			case failed(r):
 				p.Value = partInstrument
-			case isBArm(a):
+			case slices.Contains(bArms, a):
 				p.Value = yesNo(e.Hi < hScaleBMaxMS)
 			default:
 				p.Value = yesNo(e.Lo > hScaleAMinMS)
@@ -1131,5 +1210,61 @@ func sortedKeys[K int | string, V any](m map[K]V) []K {
 		out = append(out, k)
 	}
 	slices.Sort(out)
+	return out
+}
+
+// incompleteRuns lists the runs that did not finish: killed (manifest
+// unfinished), stopped early, or still running. They enter no verdict and
+// no other table; the calls they streamed are counted.
+func incompleteRuns(b *strings.Builder, runs []*SwarmRun) []map[string]any {
+	if len(runs) == 0 {
+		return nil
+	}
+	w := func(format string, a ...any) { fmt.Fprintf(b, format, a...) }
+	w("\n## Incomplete runs (no verdict)\n\n")
+	w("Runs that did not finish: stopped early, or with an unfinished manifest (killed, or still running). Their calls were streamed to calls.jsonl as they ran; they decide nothing.\n\n")
+	w("| arm | N | serial | run | started | status | calls recorded | scripted calls | script |\n|---|---|---|---|---|---|---|---|---|\n")
+	var out []map[string]any
+	for _, r := range runs {
+		m := r.Manifest
+		status := "stopped: " + m.Stopped
+		if m.Stopped == "" {
+			status = "unfinished (no end recorded: killed or running)"
+		}
+		w("| %s | %d | %s | %s | %s | %s | %d | %d | %s |\n", m.Arm, m.Script.Agents, map[bool]string{true: "yes", false: ""}[m.Serial],
+			m.Run, m.Started, status, r.RecordedCalls, m.ScriptedCalls, short(m.ScriptSHA256))
+		out = append(out, map[string]any{"arm": m.Arm, "agents": m.Script.Agents, "serial": m.Serial, "run": m.Run, "started": m.Started,
+			"stopped": m.Stopped, "finished": m.Finished, "calls_recorded": r.RecordedCalls, "scripted_calls": m.ScriptedCalls,
+			"script_sha256": m.ScriptSHA256})
+	}
+	return out
+}
+
+// otherRuns lists complete runs of arms outside the ten registered G3 arms
+// (G1's b, ablations, -name runs). They enter no verdict.
+func otherRuns(b *strings.Builder, runs []*SwarmRun, p50s map[*SwarmRun]Estimate, resamples int) []map[string]any {
+	var others []*SwarmRun
+	for _, r := range runs {
+		if !registeredArm(r.Manifest.Arm) {
+			others = append(others, r)
+		}
+	}
+	if len(others) == 0 {
+		return nil
+	}
+	w := func(format string, a ...any) { fmt.Fprintf(b, format, a...) }
+	w("\n## Other runs (no verdict)\n\n")
+	w("Runs of arms outside the ten registered G3 arms (%s; %s). They enter no H-scale part or pair.\n\n",
+		strings.Join(swarmBArms, ", "), strings.Join(swarmAArms, ", "))
+	w("| arm | N | serial | calls | p50 [95%% CI] | critical-path slope ms/level [95%% CI] | script |\n|---|---|---|---|---|---|---|\n")
+	var out []map[string]any
+	for _, r := range others {
+		m := r.Manifest
+		sl := slopeBoot(r, resamples, seedFor("swarm-slope", m.Arm, "other", fmt.Sprint(m.Script.Agents)))
+		w("| %s | %d | %s | %d | %s | %s | %s |\n", m.Arm, m.Script.Agents, map[bool]string{true: "yes", false: ""}[m.Serial],
+			len(r.Calls), p50s[r], sl, short(m.ScriptSHA256))
+		out = append(out, map[string]any{"arm": m.Arm, "agents": m.Script.Agents, "serial": m.Serial, "p50_ms": p50s[r].json(),
+			"slope_ms_per_level": sl.json(), "script_sha256": m.ScriptSHA256})
+	}
 	return out
 }

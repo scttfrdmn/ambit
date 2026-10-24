@@ -166,3 +166,66 @@ func (g *countGate) Decide(ctx context.Context, r corpus.Record) arms.Decision {
 	*g.n++
 	return g.inner.Decide(ctx, r)
 }
+
+// TestStream: with a Stream, every recorded call reaches calls.jsonl in the
+// quill's order; a run cancelled mid-way keeps the calls it recorded, and
+// its result still counts the agents that ran.
+func TestStream(t *testing.T) {
+	for _, cancelAt := range []int{0, 50} {
+		dir := t.TempDir()
+		qw, err := quill.NewWriter(filepath.Join(dir, "quill.jsonl"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		st, err := NewStream(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		s := script(t, Default(5, 1000, 4))
+		var n atomic.Int64
+		res, err := Run(ctx, b0(t), s, Options{Quill: qw, Run: "test-run", Stream: st, Concurrency: 4,
+			Stop: func(arms.Decision) string {
+				if ctx.Err() != nil {
+					return "interrupted"
+				}
+				return ""
+			},
+			Progress: func(int, Call) {
+				if n.Add(1) == int64(cancelAt) {
+					cancel()
+				}
+			}})
+		cancel()
+		qw.Close()
+		if cerr := st.Close(); cerr != nil {
+			t.Fatal(cerr)
+		}
+		if cancelAt == 0 && err != nil {
+			t.Fatal(err)
+		}
+		if cancelAt > 0 && res.Stopped != "interrupted" {
+			t.Fatalf("stopped %q, err %v", res.Stopped, err)
+		}
+		calls, err := corpus.ReadJSONL[Call](filepath.Join(dir, "calls.jsonl"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		es, err := quill.ReadAll(filepath.Join(dir, "quill.jsonl"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(calls) == 0 || len(calls) != len(res.Calls) || len(es) != len(calls) || res.AgentsRan == 0 || len(res.Tasks) != len(s.Tasks) {
+			t.Fatalf("cancel at %d: %d streamed, %d recorded, %d quill entries, %d agents ran, %d tasks",
+				cancelAt, len(calls), len(res.Calls), len(es), res.AgentsRan, len(res.Tasks))
+		}
+		if cancelAt > 0 && len(calls) >= len(s.Agents) {
+			t.Errorf("cancelled run streamed %d calls", len(calls))
+		}
+		for i, e := range es {
+			if id, _ := e.ObservedState["record"]["id"].(string); id != calls[i].ID {
+				t.Fatalf("line %d: quill %s, stream %s", i, id, calls[i].ID)
+			}
+		}
+	}
+}

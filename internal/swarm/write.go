@@ -3,17 +3,21 @@ package swarm
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 )
 
 // Manifest describes a swarm run. Output, under results/<run>/:
 //
-//	manifest.json  what ran, on what, when
-//	calls.jsonl    one line per gated call: decision, latency, depth, record, oracle truth
-//	tasks.jsonl    one line per task: critical path, by depth
-//	raw.jsonl      every model reply verbatim
-//	quill.jsonl    one LKI quill entry per Cedar decision (B0 and the B arms)
+//	manifest.json  what ran, on what, when; written at the start (unfinished) and rewritten at the end
+//	calls.jsonl    one line per gated call: decision, latency, depth, record, oracle truth (streamed)
+//	tasks.jsonl    one line per task: critical path, by depth (at the end)
+//	raw.jsonl      every model reply verbatim (streamed)
+//	quill.jsonl    one LKI quill entry per Cedar decision (B0 and the B arms; streamed)
+//
+// A run killed before it ends leaves its manifest unfinished and the calls
+// and replies streamed so far; the report lists it as incomplete.
 type Manifest struct {
 	Run  string `json:"run"`
 	Arm  string `json:"arm"`
@@ -82,7 +86,75 @@ func WriteManifest(dir string, m Manifest) error {
 	return os.WriteFile(filepath.Join(dir, "manifest.json"), append(b, '\n'), 0o644)
 }
 
-// WriteResults writes calls.jsonl, tasks.jsonl, and raw.jsonl.
+// WriteTasks writes tasks.jsonl.
+func WriteTasks(dir string, tasks []TaskResult) error {
+	return writeLines(filepath.Join(dir, "tasks.jsonl"), len(tasks), func(enc *json.Encoder, i int) error {
+		return enc.Encode(tasks[i])
+	})
+}
+
+// Stream appends gated calls to calls.jsonl and their model replies to
+// raw.jsonl as a run goes, so that a run killed mid-way keeps what it
+// recorded. Run is its only writer (Options.Stream), from one goroutine, in
+// the order the calls are recorded; it flushes every streamFlushLines calls
+// and at least every streamFlushEvery, and on Close.
+type Stream struct {
+	calls, raw *os.File
+	cw, rw     *bufio.Writer
+	cenc, renc *json.Encoder
+	sinceFlush int
+}
+
+// streamFlushLines is how many calls Stream buffers before it flushes.
+const streamFlushLines = 256
+
+// NewStream creates dir/calls.jsonl and dir/raw.jsonl.
+func NewStream(dir string) (*Stream, error) {
+	cf, err := os.Create(filepath.Join(dir, "calls.jsonl"))
+	if err != nil {
+		return nil, err
+	}
+	rf, err := os.Create(filepath.Join(dir, "raw.jsonl"))
+	if err != nil {
+		cf.Close()
+		return nil, err
+	}
+	s := &Stream{calls: cf, raw: rf, cw: bufio.NewWriter(cf), rw: bufio.NewWriter(rf)}
+	s.cenc, s.renc = json.NewEncoder(s.cw), json.NewEncoder(s.rw)
+	s.cenc.SetEscapeHTML(false)
+	s.renc.SetEscapeHTML(false)
+	return s, nil
+}
+
+// Write appends one call and its replies.
+func (s *Stream) Write(c Call) error {
+	if err := s.cenc.Encode(c); err != nil {
+		return err
+	}
+	for _, raw := range c.Decision.Raw {
+		if err := s.renc.Encode(map[string]any{"id": c.ID, "question": raw.Question, "reply": raw.Reply}); err != nil {
+			return err
+		}
+	}
+	if s.sinceFlush++; s.sinceFlush >= streamFlushLines {
+		return s.Flush()
+	}
+	return nil
+}
+
+// Flush writes the buffered lines to the files.
+func (s *Stream) Flush() error {
+	s.sinceFlush = 0
+	return errors.Join(s.cw.Flush(), s.rw.Flush())
+}
+
+// Close flushes and closes both files.
+func (s *Stream) Close() error {
+	return errors.Join(s.Flush(), s.calls.Close(), s.raw.Close())
+}
+
+// WriteResults writes calls.jsonl, tasks.jsonl, and raw.jsonl at once, for
+// a run made without a Stream.
 func WriteResults(dir string, res Result) error {
 	err := writeLines(filepath.Join(dir, "calls.jsonl"), len(res.Calls), func(enc *json.Encoder, i int) error {
 		return enc.Encode(res.Calls[i])

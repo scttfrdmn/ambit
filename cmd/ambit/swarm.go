@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/scttfrdmn/ambit/internal/arms"
@@ -33,7 +34,9 @@ func cmdSwarm(args []string) error {
 	instance := fs.String("instance-type", "", "EC2 instance type the run shares with its model server, for the GPU cost (empty off EC2)")
 	fs.Parse(args)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	// SIGTERM too: a spore TTL stop finalizes what it can, as an interrupt
+	// does.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	hash, err := corpus.Verify(*dir)
@@ -87,9 +90,16 @@ func cmdSwarm(args []string) error {
 		return err
 	}
 	defer qw.Close()
+	// Calls and raw replies are streamed as the run goes: a run killed
+	// before it ends keeps them under its unfinished manifest.
+	st, err := swarm.NewStream(out)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
 
 	start := time.Now()
-	opt := swarm.Options{Concurrency: *concurrency, Serial: *serial, Quill: qw, Run: m.Run,
+	opt := swarm.Options{Concurrency: *concurrency, Serial: *serial, Quill: qw, Run: m.Run, Stream: st,
 		// A spend cap or an unbillable account would repeat on every
 		// remaining call, as in ambit run; so would an interrupt.
 		Stop: func(d arms.Decision) string {
@@ -110,9 +120,12 @@ func cmdSwarm(args []string) error {
 			}
 		}}
 	res, runErr := swarm.Run(ctx, b.gate, s, opt)
+	if runErr != nil && res.Stopped == "" && ctx.Err() != nil {
+		res.Stopped = "interrupted"
+	}
 	if runErr != nil && res.Stopped == "" {
-		// The calls made so far are still written, under a stopped manifest
-		// the report skips.
+		// The calls made so far are already streamed; the manifest is
+		// rewritten stopped, and the report lists the run as incomplete.
 		res.Stopped = "harness error: " + runErr.Error()
 	}
 	m.Gated, m.AgentsRan, m.ProbesRan = len(res.Calls), res.AgentsRan, res.ProbesRan
@@ -127,10 +140,16 @@ func cmdSwarm(args []string) error {
 	if b.spent != nil {
 		m.SpendMicros = b.spent()
 	}
-	if err := swarm.WriteResults(out, res); err != nil {
+	if err := st.Close(); err != nil && m.Stopped == "" {
+		m.Stopped = "harness error: " + err.Error()
+	}
+	if err := swarm.WriteTasks(out, res.Tasks); err != nil {
 		return err
 	}
-	m.Finished = time.Now().UTC().Format(time.RFC3339)
+	// Finished marks a complete run only; a stopped one keeps it empty.
+	if m.Stopped == "" {
+		m.Finished = time.Now().UTC().Format(time.RFC3339)
+	}
 	if err := swarm.WriteManifest(out, m); err != nil {
 		return err
 	}

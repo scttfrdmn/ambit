@@ -120,6 +120,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the ledger's per-run cap and ceiling, as `ambit run` does. `-serial`
   makes reference runs. `-instance-type` and `-server-slots` are recorded
   in the manifest.
+  - Results stream as the run goes, as `ambit run`'s do: the manifest is
+    written unfinished at the start and rewritten at the end, and one
+    writer goroutine appends each call to `calls.jsonl`, its replies to
+    `raw.jsonl` and its quill entry, in record order, flushing at least
+    every second. A run killed by a TTL stop, SIGTERM or OOM keeps what it
+    recorded. SIGTERM is handled like an interrupt: the swarm halts and
+    the manifest is rewritten stopped, with `finished` left empty.
+  - Recording never blocks on the writer while holding the harness lock.
 - `ambit swarm-report`, implementing the G3 registration on #21:
   - B flat (p50 at N = 10,000 over N = 100), A compounds (critical-path
     slope on depth at N = 1,000, paired by task against every B arm), and
@@ -134,6 +142,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     cost per run and per 1k gate calls; denials with a determining policy.
   - Scaled-server runs (more server slots than the arm's primary runs) go
     in a separate secondary table, outside the verdicts.
+  - Only the ten registered arms enter verdicts. Other arms (G1's `b`,
+    ablations, `-name` runs) are listed under "Other runs (no verdict)".
+  - An A arm is not paired with a B arm whose run at N = 1,000 ran a
+    different script: its compounds part is "not measured (script
+    differs)".
+  - Incomplete runs (stopped, or with an unfinished manifest) are listed
+    with the calls they streamed and enter no verdict or table.
 - `-run-cap` for `ambit run` and `ambit swarm`: the per-run hosted cap in
   dollars, default 5. Values at or below 0 or above 15 are refused. The
   cap is recorded in the manifest (`run_cap_micros`).
@@ -143,7 +158,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ambit run`'s gate construction moved to `cmd/ambit/gates.go`, which it
   shares with `ambit swarm`. Its flags and behaviour are unchanged, apart
   from the new `-run-cap`.
-
 - Determining policies are sorted, so decisions and quill entries are
   reproducible.
 - The G1 report, regenerated with the current code:

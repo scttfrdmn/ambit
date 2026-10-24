@@ -3,6 +3,7 @@ package report
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand/v2"
 	"os"
@@ -42,7 +43,7 @@ func (s synthRun) run(seed uint64) *SwarmRun {
 	noise := func(v float64) float64 { return v * (0.9 + 0.2*r.Float64()) }
 	nt := tasksAt(s.n)
 	run := &SwarmRun{Manifest: swarm.Manifest{Arm: s.arm, Kind: swarm.ManifestKind, Script: swarm.Default(1, s.n, 4),
-		Serial: s.serial, ServerSlots: s.slots, ScaledServers: s.scaled, Tasks: nt, RepairableErrors: s.repairable}}
+		Serial: s.serial, ServerSlots: s.slots, ScaledServers: s.scaled, Tasks: nt, RepairableErrors: s.repairable, Finished: "done"}}
 	for i := range nt {
 		id := fmt.Sprintf("t%05d", i)
 		d := i % 4
@@ -419,7 +420,7 @@ func TestSwarmReport(t *testing.T) {
 			}
 		}
 	}
-	// A stopped run is not loaded.
+	// A stopped run is loaded as incomplete, listed only.
 	for name, m := range map[string]swarm.Manifest{
 		"stopped": {Arm: "b0", Kind: swarm.ManifestKind, Script: swarm.Default(1, 100, 2), Started: "z", Finished: "done", Stopped: "per-run cap"},
 	} {
@@ -434,10 +435,16 @@ func TestSwarmReport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(runs) != 4 {
-		t.Fatalf("loaded %d runs, want 4", len(runs))
+	if len(runs) != 5 {
+		t.Fatalf("loaded %d runs, want 5", len(runs))
 	}
 	for _, r := range runs {
+		if r.Incomplete() {
+			if r.Manifest.Stopped != "per-run cap" || r.Calls != nil {
+				t.Errorf("incomplete run %+v", r.Manifest)
+			}
+			continue
+		}
 		b := isBArm(r.Manifest.Arm)
 		if b && len(r.QuillDet) != len(r.Calls) || !b && len(r.QuillDet) != 0 {
 			t.Errorf("%s: %d quill entries for %d calls", r.Manifest.Run, len(r.QuillDet), len(r.Calls))
@@ -449,6 +456,9 @@ func TestSwarmReport(t *testing.T) {
 			t.Errorf("report is missing %q:\n%s", s, md)
 		}
 	}
+	if inc := data["incomplete"].([]map[string]any); len(inc) != 1 || inc[0]["stopped"] != "per-run cap" {
+		t.Errorf("incomplete listing %v", inc)
+	}
 	audit := data["auditability"].([]map[string]any)
 	if len(audit) != 2 {
 		t.Fatalf("auditability rows %v", audit)
@@ -458,5 +468,94 @@ func TestSwarmReport(t *testing.T) {
 		if a["quill_disagrees"] != 0 || in.N == 0 || in.K != in.N {
 			t.Errorf("b0 audit %v: every in-ambit Cedar denial names a policy", a)
 		}
+	}
+}
+
+// TestScriptDiffers: an A arm whose run at N = 1,000 ran a different script
+// from a B arm's is not paired with it: its compounds part is "not measured
+// (script differs)", and every pair with it is undetermined; the rest hold.
+func TestScriptDiffers(t *testing.T) {
+	runs := registered(nil)
+	for _, r := range runs {
+		r.Manifest.ScriptSHA256 = "s1"
+		if r.Manifest.Arm == "b-hosted" && r.Manifest.Script.Agents == hScaleN {
+			r.Manifest.ScriptSHA256 = "s2"
+		}
+	}
+	h, md := hscale(t, runs)
+	for _, a := range swarmAArms {
+		if p := partOf(t, h["a_compounds"].([]map[string]any), a, "compounds"); p.Value != partScriptDiffers {
+			t.Errorf("%s compounds %+v, want script differs", a, p)
+		}
+	}
+	// B's own parts are unaffected: its flat ratio compares its own Ns.
+	if p := partOf(t, h["b_flat"].([]map[string]any), "b-hosted", "flat"); p.Value != partYes {
+		t.Errorf("b-hosted flat %+v", p)
+	}
+	for k, v := range pairsOf(h) {
+		if v != "undetermined" {
+			t.Errorf("pair %s: %s", k, v)
+		}
+	}
+	if !strings.Contains(md, "ran different scripts") || !strings.Contains(md, partScriptDiffers) {
+		t.Errorf("report does not flag the script difference:\n%s", md)
+	}
+	// A genuine "no" against a B arm on the same script still decides.
+	runs = registered(map[string]func(*synthRun){"a-local": func(s *synthRun) { s.path = constMS(500) }})
+	for _, r := range runs {
+		r.Manifest.ScriptSHA256 = "s1"
+		if r.Manifest.Arm == "b-hosted" && r.Manifest.Script.Agents == hScaleN {
+			r.Manifest.ScriptSHA256 = "s2"
+		}
+	}
+	h, _ = hscale(t, runs)
+	if p := partOf(t, h["a_compounds"].([]map[string]any), "a-local", "compounds"); p.Value != partNo {
+		t.Errorf("a-local compounds %+v, want no", p)
+	}
+}
+
+// TestOtherArms: arms outside the ten registered ones (G1's b, an
+// ablation, a -name run) enter no verdict: the 25 pairs and every part are
+// as without them, and they are listed under other runs.
+func TestOtherArms(t *testing.T) {
+	base, _ := hscale(t, registered(nil))
+	runs := registered(nil)
+	seed := uint64(1000)
+	for _, a := range []string{"b", "b-4b-ablation", "bx", "a-local-ablation"} {
+		for _, n := range []int{100, 1000, 10000} {
+			seed++
+			// A B-like arm whose slope exceeds every A arm's would make every
+			// A arm's paired difference negative if it entered the test.
+			runs = append(runs, synthRun{arm: a, n: n, gate: constMS(1), path: perLevel(6, 1000)}.run(seed))
+		}
+	}
+	h, md := hscale(t, runs)
+	if got, want := pairsOf(h), pairsOf(base); len(got) != 25 || !maps.Equal(got, want) {
+		t.Errorf("pairs %v, want %v", got, want)
+	}
+	for _, a := range swarmAArms {
+		got := partOf(t, h["a_compounds"].([]map[string]any), a, "compounds")
+		if want := partOf(t, base["a_compounds"].([]map[string]any), a, "compounds"); got.Value != want.Value || got.Value != partYes {
+			t.Errorf("%s compounds %+v, want %+v", a, got, want)
+		}
+	}
+	for _, key := range []string{"b_flat", "a_compounds", "p50_at_1000", "pairs"} {
+		for _, row := range h[key].([]map[string]any) {
+			for _, k := range []string{"arm", "b", "a"} {
+				if v, ok := row[k].(string); ok && !registeredArm(v) {
+					t.Errorf("%s has unregistered arm %s", key, v)
+				}
+			}
+		}
+	}
+	_, data := BuildSwarm(runs, Options{Resamples: 50})
+	if other := data["other_runs"].([]map[string]any); len(other) != 12 {
+		t.Errorf("%d other runs, want 12", len(other))
+	}
+	if !strings.Contains(md, "## Other runs (no verdict)") || !strings.Contains(md, "25 of 25 pairs hold") {
+		t.Errorf("report:\n%s", md)
+	}
+	if !isBArm("b") || !isBArm("b0") || isBArm("bx") || !isBArm("b-4b") {
+		t.Error("isBArm")
 	}
 }

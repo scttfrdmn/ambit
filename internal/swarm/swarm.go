@@ -147,7 +147,16 @@ type Options struct {
 	// in the order the decisions are recorded.
 	Quill *quill.Writer
 	Run   string
+	// Stream, if set, receives every recorded call and its model replies
+	// as they are recorded, from the same writer goroutine and in the same
+	// order as the quill; it is flushed periodically and when Run returns
+	// (the caller closes it). With a Stream, Result.Calls carries no raw
+	// replies: they are in raw.jsonl.
+	Stream *Stream
 }
+
+// writerFlushEvery bounds how long a recorded call can sit in a buffer.
+const writerFlushEvery = time.Second
 
 // Result is a finished run.
 type Result struct {
@@ -186,16 +195,21 @@ type harness struct {
 	repairable int
 	stopped    string
 
-	// quill hands decisions with Cedar evaluations to the quill writer.
-	quill    chan quillJob
+	// out hands recorded calls to the writer goroutine (the quill and the
+	// stream). record numbers each call under mu and sends it after
+	// releasing mu, so a full buffer never blocks other agents' records;
+	// the writer restores the order from the numbers.
+	out      chan outJob
+	seq      int
 	quillN   int
-	quillErr error
+	writeErr error
 }
 
-// quillJob is one decision for the quill, with its stoop number.
-type quillJob struct {
-	n int
-	c Call
+// outJob is one recorded call for the writer: seq orders all calls, and q,
+// if positive, is its quill entry's number.
+type outJob struct {
+	seq, q int
+	c      Call
 }
 
 // Run runs the script with every tool call gated by g.
@@ -214,21 +228,10 @@ func Run(ctx context.Context, g arms.Gate, s *Script, opt Options) (Result, erro
 	for _, name := range vocab.UnknownTools {
 		h.tools[name] = &Gated{Inner: &fakeTool{name: name, desc: vocab.UnknownToolDescriptions[name]}, h: h}
 	}
-	var qdone chan struct{}
-	if opt.Quill != nil {
-		h.quill, qdone = make(chan quillJob, 4096), make(chan struct{})
-		go func() {
-			defer close(qdone)
-			for j := range h.quill {
-				if h.quillErr != nil {
-					continue
-				}
-				e := run.QuillEntry(opt.Run, j.n, j.c.Record, j.c.Decision)
-				e.ObservedState["swarm"] = map[string]any{"task": j.c.Task, "agent": j.c.Agent, "kind": j.c.Kind,
-					"depth": j.c.Depth, "gate_ns": j.c.GateNS}
-				h.quillErr = opt.Quill.Write(e)
-			}
-		}()
+	var wdone chan struct{}
+	if opt.Quill != nil || opt.Stream != nil {
+		h.out, wdone = make(chan outJob, 4096), make(chan struct{})
+		go h.writer(wdone)
 	}
 	h.start = time.Now()
 	var wg sync.WaitGroup
@@ -253,26 +256,22 @@ func Run(ctx context.Context, g arms.Gate, s *Script, opt Options) (Result, erro
 		}()
 	}
 	wg.Wait()
-	res := Result{WallNS: time.Since(h.start).Nanoseconds(), SwarmSpent: h.swarm.Load(),
-		Calls: h.calls, Errors: h.errors, RepairableErrors: h.repairable, QuillEntries: h.quillN, Stopped: h.stopped}
-	if h.quill != nil {
-		close(h.quill)
-		<-qdone
-		if h.quillErr != nil {
-			return res, fmt.Errorf("quill: %w", h.quillErr)
+	var writeErr error
+	if h.out != nil {
+		close(h.out)
+		<-wdone
+		if h.writeErr != nil {
+			writeErr = fmt.Errorf("writing results: %w", h.writeErr)
 		}
 	}
+	res := Result{WallNS: time.Since(h.start).Nanoseconds(), SwarmSpent: h.swarm.Load(),
+		Calls: h.calls, Errors: h.errors, RepairableErrors: h.repairable, QuillEntries: h.quillN, Stopped: h.stopped}
 	for i := range h.ran {
 		if h.ran[i].Load() {
 			res.AgentsRan++
 			if s.Agents[i].Probe {
 				res.ProbesRan++
 			}
-		}
-	}
-	for _, err := range errs {
-		if err != nil {
-			return res, err
 		}
 	}
 	slices.SortFunc(res.Calls, func(a, b Call) int {
@@ -282,7 +281,74 @@ func Run(ctx context.Context, g arms.Gate, s *Script, opt Options) (Result, erro
 	for i := range res.Tasks {
 		res.Tasks[i].WallNS = h.wall[i].Load()
 	}
+	if writeErr != nil {
+		return res, writeErr
+	}
+	for _, err := range errs {
+		if err != nil {
+			return res, err
+		}
+	}
 	return res, nil
+}
+
+// writer is the single writer of the quill and the stream. It writes the
+// recorded calls in record order, flushing the stream every
+// writerFlushEvery; after its first error it drains and writes nothing.
+func (h *harness) writer(done chan struct{}) {
+	defer close(done)
+	tick := time.NewTicker(writerFlushEvery)
+	defer tick.Stop()
+	pending := map[int]outJob{}
+	next := 1
+	write := func(j outJob) {
+		if h.writeErr != nil {
+			return
+		}
+		if j.q > 0 && h.opt.Quill != nil {
+			e := run.QuillEntry(h.opt.Run, j.q, j.c.Record, j.c.Decision)
+			e.ObservedState["swarm"] = map[string]any{"task": j.c.Task, "agent": j.c.Agent, "kind": j.c.Kind,
+				"depth": j.c.Depth, "gate_ns": j.c.GateNS}
+			if err := h.opt.Quill.Write(e); err != nil {
+				h.writeErr = fmt.Errorf("quill: %w", err)
+				return
+			}
+		}
+		if h.opt.Stream != nil {
+			j.c.Decision.Cedar = nil
+			if err := h.opt.Stream.Write(j.c); err != nil {
+				h.writeErr = fmt.Errorf("stream: %w", err)
+			}
+		}
+	}
+	flush := func() {
+		if h.opt.Stream != nil && h.writeErr == nil {
+			if err := h.opt.Stream.Flush(); err != nil {
+				h.writeErr = fmt.Errorf("stream: %w", err)
+			}
+		}
+	}
+	defer flush()
+	for {
+		select {
+		case j, ok := <-h.out:
+			if !ok {
+				return
+			}
+			pending[j.seq] = j
+			for {
+				j, ok := pending[next]
+				if !ok {
+					break
+				}
+				delete(pending, next)
+				next++
+				write(j)
+			}
+		case <-tick.C:
+			flush()
+		}
+	}
 }
 
 func compareIDs(a, b string) int {
@@ -297,13 +363,21 @@ func compareIDs(a, b string) int {
 
 func (h *harness) record(c Call) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.quill != nil && len(c.Decision.Cedar) > 0 {
-		h.quillN++
-		h.quill <- quillJob{h.quillN, c}
+	j := outJob{c: c} // the full call: Cedar evaluations and raw replies
+	if h.out != nil {
+		h.seq++
+		j.seq = h.seq
+		if h.opt.Quill != nil && len(c.Decision.Cedar) > 0 {
+			h.quillN++
+			j.q = h.quillN
+		}
 	}
-	// The Cedar evaluations go to the quill only; the run keeps the rest.
+	// The Cedar evaluations go to the quill only, and with a stream the raw
+	// replies to raw.jsonl only; the run keeps the rest.
 	c.Decision.Cedar = nil
+	if h.opt.Stream != nil {
+		c.Decision.Raw = nil
+	}
 	h.calls = append(h.calls, c)
 	if c.Decision.Error != "" {
 		h.errors++
@@ -316,6 +390,10 @@ func (h *harness) record(c Call) {
 	}
 	if h.opt.Progress != nil {
 		h.opt.Progress(len(h.calls), c)
+	}
+	h.mu.Unlock()
+	if h.out != nil {
+		h.out <- j
 	}
 }
 

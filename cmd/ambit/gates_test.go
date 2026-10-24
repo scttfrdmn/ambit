@@ -11,12 +11,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/scttfrdmn/ambit/internal/arms"
 	"github.com/scttfrdmn/ambit/internal/bedrock"
 	"github.com/scttfrdmn/ambit/internal/corpus"
 	"github.com/scttfrdmn/ambit/internal/lki/quill"
+	"github.com/scttfrdmn/ambit/internal/report"
 	"github.com/scttfrdmn/ambit/internal/run"
 	"github.com/scttfrdmn/ambit/internal/swarm"
 )
@@ -26,10 +30,14 @@ const testCorpus = "../../corpus"
 // fakeModels serves every model API the arms reach: llama-server's
 // /tokenize and /completion (Jebadiah), strands-decider's /health and
 // /v1/systemone (strands and d3), and the Decisions API (hosted).
-func fakeModels(t *testing.T) *httptest.Server {
+func fakeModels(t *testing.T) *httptest.Server { return slowFakeModels(t, 0) }
+
+// slowFakeModels is fakeModels with every reply delayed by delay.
+func slowFakeModels(t *testing.T, delay time.Duration) *httptest.Server {
 	t.Helper()
 	const boundary = "</think>\n\n"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(delay)
 		var req map[string]any
 		if r.Method == http.MethodPost {
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -232,3 +240,68 @@ func TestRunCapBounds(t *testing.T) {
 }
 
 func fmtFloat(f float64) string { return strconv.FormatFloat(f, 'g', -1, 64) }
+
+// TestSwarmSIGTERM: a swarm stopped by SIGTERM (a spore TTL stop) mid-run
+// keeps the calls it streamed under a stopped, unfinished manifest, and the
+// report lists it as incomplete and scores nothing from it.
+func TestSwarmSIGTERM(t *testing.T) {
+	srv := slowFakeModels(t, 5*time.Millisecond)
+	res := t.TempDir()
+	var done atomic.Bool
+	errc := make(chan error, 1)
+	go func() {
+		err := cmdSwarm([]string{"-arm", "a-d3", "-d3", srv.URL, "-dir", testCorpus, "-results", res, "-agents", "100", "-concurrency", "2"})
+		done.Store(true)
+		errc <- err
+	}()
+	// The manifest is written after the signal handler is installed; the
+	// first calls reach calls.jsonl within a second.
+	deadline := time.Now().Add(20 * time.Second)
+	for {
+		ms, _ := filepath.Glob(filepath.Join(res, "*", "calls.jsonl"))
+		if len(ms) == 1 {
+			if fi, err := os.Stat(ms[0]); err == nil && fi.Size() > 0 {
+				break
+			}
+		}
+		if done.Load() || time.Now().After(deadline) {
+			t.Fatal("the swarm ended, or streamed nothing, before it could be signalled")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if done.Load() {
+		t.Fatal("the swarm finished before it could be signalled")
+	}
+	if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-errc; err == nil || !strings.Contains(err.Error(), "interrupted") {
+		t.Fatalf("err = %v, want an interrupted stop", err)
+	}
+	dir := onlyRun(t, res)
+	m := readJSON[swarm.Manifest](t, filepath.Join(dir, "manifest.json"))
+	if m.Finished != "" || m.Stopped != "interrupted" || m.Tasks == 0 || m.AgentsRan == 0 {
+		t.Fatalf("manifest finished %q, stopped %q, tasks %d, agents ran %d", m.Finished, m.Stopped, m.Tasks, m.AgentsRan)
+	}
+	calls, err := corpus.ReadJSONL[swarm.Call](filepath.Join(dir, "calls.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) == 0 || len(calls) != m.Gated || len(calls) >= m.ScriptedCalls {
+		t.Fatalf("%d calls streamed, manifest gated %d of %d scripted", len(calls), m.Gated, m.ScriptedCalls)
+	}
+	runs, err := report.LoadSwarm(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runs) != 1 || !runs[0].Incomplete() || runs[0].RecordedCalls != len(calls) {
+		t.Fatalf("loaded %d runs", len(runs))
+	}
+	md, data := report.BuildSwarm(runs, report.Options{Resamples: 20})
+	if inc := data["incomplete"].([]map[string]any); len(inc) != 1 || inc[0]["calls_recorded"] != len(calls) {
+		t.Errorf("incomplete listing %v", inc)
+	}
+	if len(data["gate_latency"].([]map[string]any)) != 0 || !strings.Contains(md, "## Incomplete runs (no verdict)") {
+		t.Errorf("an incomplete run was scored:\n%s", md)
+	}
+}
