@@ -51,7 +51,7 @@ func main() {
 	}
 }
 
-var configs = map[string]gen.Config{"g0": gen.G0, "g2a": gen.G2a, "g2b": gen.G2b}
+var configs = map[string]gen.Config{"g0": gen.G0, "g2a": gen.G2a, "g2b": gen.G2b, "g2c": gen.G2c}
 
 func cmdCorpus(args []string) error {
 	fs := flag.NewFlagSet("corpus", flag.ExitOnError)

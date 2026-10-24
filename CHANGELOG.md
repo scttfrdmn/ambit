@@ -114,6 +114,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Generator: two cv_outcomes on-subject note templates were ambiguous
+  against their proposition (#55). An event-free follow-up and an MI that
+  predates therapy were labelled "about major adverse cardiovascular events
+  in patients on lipid-lowering therapy". `NoteRevision` 1 replaces them
+  with notes that record a MACE on therapy. Revision 0 still reproduces the
+  frozen G0, G2a and G2b corpora byte for byte. New corpus `corpus/g2c`
+  (hash `fedb7147…`) is G2a regenerated with the fix: 1,926 records differ,
+  exactly the #55 set, and the oracle and policies are unchanged.
+
 - spore.host fleet defects found during G2 (#33):
   - A shard counts as done only if it has no repairable gate errors. A
     crashed model server no longer passes as 5,000 decided records. Run
