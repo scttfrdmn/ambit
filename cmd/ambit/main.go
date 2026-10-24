@@ -2,11 +2,15 @@
 //
 //	ambit corpus [-config g0|g2a|g2b|g2c] [-dir dir]
 //	ambit verify [-dir corpus]
-//	ambit run -arm b0|b|b-4b|b-hosted|b-strands|a-local|a-hosted|a-strands
+//	ambit run -arm b0|b|b-4b|b-hosted|b-strands|b-safeguard|a-local|a-hosted|a-strands|a-d3|a-safeguard
 //	          [-dir corpus] [-results dir] [-offset n] [-limit n] [-concurrency n]
 //	          [-cache-prompt] [-ablation failclosed] [-name s] [-ceiling dollars]
 //	          [-repair run-dirs] [-llama url] [-strands url] [-strands-concurrent]
+//	          [-d3 url] [-d3-runtime q8|official] [-bedrock-region r]
 //	ambit report [-dir corpus] [-results dir] [-out dir] [-resamples n]
+//	ambit swarm -arm (any arm ambit run takes, same gate flags) [-agents n] [-calls k]
+//	          [-seed s] [-concurrency n] [-serial] [-instance-type t]
+//	ambit swarm-report [-results dir] [-out dir] [-resamples n]
 //	ambit state <record-id>   print the Arm A serialized state
 package main
 
@@ -25,7 +29,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: ambit corpus|verify|run|report [flags]")
+		fmt.Fprintln(os.Stderr, "usage: ambit corpus|verify|run|report|swarm|swarm-report|state|compute-cost [flags]")
 		os.Exit(2)
 	}
 	var err error
@@ -38,6 +42,10 @@ func main() {
 		err = cmdRun(os.Args[2:])
 	case "report":
 		err = cmdReport(os.Args[2:])
+	case "swarm":
+		err = cmdSwarm(os.Args[2:])
+	case "swarm-report":
+		err = cmdSwarmReport(os.Args[2:])
 	case "state":
 		err = cmdState(os.Args[2:])
 	case "compute-cost":

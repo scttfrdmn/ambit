@@ -101,9 +101,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Instance job with pinned llama.cpp and strands-decider runtimes, logs
     streamed to S3, and a no-progress watchdog.
   - Local dead-man watcher, fetch, and straggler check.
+- G3 live-swarm harness (`internal/swarm`, #21), ported to main (#44):
+  - A seeded script of N agents in one tree per task, down to depth 3,
+    each making K work calls drawn with the corpus's scenario builders.
+    The registered seed 20261021, K = 4 and default shape give 48 / 496 /
+    5,229 / 52,119 scripted gate calls at N = 10 / 100 / 1,000 / 10,000.
+  - Agents are agenkit agents and delegation is an agenkit AgentTool. The
+    principal chain travels in the context. The gate is an agenkit.Tool
+    decorator that records each decision with the oracle's verdict on the
+    facts the gate saw.
+  - Task and swarm spend accrue live, so a cap can be crossed mid-run.
+  - Per-task critical paths, split by depth. Gate latency excludes the
+    in-flight wait.
+  - Cedar arms write one LKI quill entry per gate decision to the run's
+    `quill.jsonl` (#45). Repairable errors are counted apart.
+- `ambit swarm`: any arm `ambit run` takes, with the same gate flags and
+  the same gate construction (`cmd/ambit/gates.go`). Hosted arms stop at
+  the ledger's per-run cap and ceiling, as `ambit run` does. `-serial`
+  makes reference runs. `-instance-type` and `-server-slots` are recorded
+  in the manifest.
+  - Results stream as the run goes, as `ambit run`'s do: the manifest is
+    written unfinished at the start and rewritten at the end, and one
+    writer goroutine appends each call to `calls.jsonl`, its replies to
+    `raw.jsonl` and its quill entry, in record order, flushing at least
+    every second. A run killed by a TTL stop, SIGTERM or OOM keeps what it
+    recorded. SIGTERM is handled like an interrupt: the swarm halts and
+    the manifest is rewritten stopped, with `finished` left empty.
+  - Recording never blocks on the writer while holding the harness lock.
+- `ambit swarm-report`, implementing the G3 registration on #21:
+  - B flat (p50 at N = 10,000 over N = 100), A compounds (critical-path
+    slope on depth at N = 1,000, paired by task against every B arm), and
+    the p50 thresholds at N = 1,000, all on 95% task-bootstrap bounds with
+    2,000 resamples.
+  - All 25 (B, A) pairs, each part given separately, with the serial
+    reference's probe resolution beside them.
+  - Runs whose repairable errors exceed 1% of gate calls are flagged as
+    instrument failures and decide nothing.
+  - Accuracy by policy, ambit class and call kind; A-d3 at its
+    G2b-transferred threshold (exploratory); depth breaches; cap overshoot;
+    cost per run and per 1k gate calls; denials with a determining policy.
+  - Scaled-server runs (more server slots than the arm's primary runs) go
+    in a separate secondary table, outside the verdicts.
+  - Only the ten registered arms enter verdicts. Other arms (G1's `b`,
+    ablations, `-name` runs) are listed under "Other runs (no verdict)".
+  - An A arm is not paired with a B arm whose run at N = 1,000 ran a
+    different script: its compounds part is "not measured (script
+    differs)".
+  - Incomplete runs (stopped, or with an unfinished manifest) are listed
+    with the calls they streamed and enter no verdict or table.
+- `-run-cap` for `ambit run` and `ambit swarm`: the per-run hosted cap in
+  dollars, default 5. Values at or below 0 or above 15 are refused. The
+  cap is recorded in the manifest (`run_cap_micros`).
 
 ### Changed
 
+- `ambit run`'s gate construction moved to `cmd/ambit/gates.go`, which it
+  shares with `ambit swarm`. Its flags and behaviour are unchanged, apart
+  from the new `-run-cap`.
 - Determining policies are sorted, so decisions and quill entries are
   reproducible.
 - The G1 report, regenerated with the current code:
