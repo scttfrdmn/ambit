@@ -1,0 +1,9 @@
+-arm b0 -dir corpus/g2c -offset 0 -limit 100000
+-arm b-4b -dir corpus/g2c -offset 0 -limit 25000 -concurrency 16 -cache-prompt
+-arm b-strands -dir corpus/g2c -offset 0 -limit 25000
+-arm b-4b -dir corpus/g2c -offset 25000 -limit 25000 -concurrency 16 -cache-prompt
+-arm b-strands -dir corpus/g2c -offset 25000 -limit 25000
+-arm b-4b -dir corpus/g2c -offset 50000 -limit 25000 -concurrency 16 -cache-prompt
+-arm b-strands -dir corpus/g2c -offset 50000 -limit 25000
+-arm b-4b -dir corpus/g2c -offset 75000 -limit 25000 -concurrency 16 -cache-prompt
+-arm b-strands -dir corpus/g2c -offset 75000 -limit 25000

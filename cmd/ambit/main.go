@@ -1,6 +1,6 @@
 // Command ambit generates the corpus, runs arms over it, and reports.
 //
-//	ambit corpus [-config g0|g2a|g2b] [-dir dir]
+//	ambit corpus [-config g0|g2a|g2b|g2c] [-dir dir]
 //	ambit verify [-dir corpus]
 //	ambit run -arm b0|b|b-4b|b-hosted|b-strands|a-local|a-hosted|a-strands
 //	          [-dir corpus] [-results dir] [-offset n] [-limit n] [-concurrency n]
@@ -51,11 +51,11 @@ func main() {
 	}
 }
 
-var configs = map[string]gen.Config{"g0": gen.G0, "g2a": gen.G2a, "g2b": gen.G2b}
+var configs = map[string]gen.Config{"g0": gen.G0, "g2a": gen.G2a, "g2b": gen.G2b, "g2c": gen.G2c}
 
 func cmdCorpus(args []string) error {
 	fs := flag.NewFlagSet("corpus", flag.ExitOnError)
-	cfgName := fs.String("config", "g0", "g0 (1k, corpus/) | g2a (10^5) | g2b (10^6)")
+	cfgName := fs.String("config", "g0", "g0 (1k, corpus/) | g2a (10^5) | g2b (10^6) | g2c (g2a with the #55 note fix)")
 	dir := fs.String("dir", "", "corpus directory (default: corpus for g0, corpus/<config> otherwise)")
 	fs.Parse(args)
 	cfg, ok := configs[*cfgName]
