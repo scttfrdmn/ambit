@@ -218,8 +218,30 @@ var offSubjectNotes = []noteTemplate{
 	{"Pre-operative assessment for cataract surgery. Routine bloods from last month noted (HbA1c normal, LDL-C %d mg/dL); no changes needed before surgery.", 90, 140},
 }
 
-func onSubjectNote(r *rand.Rand, purpose string) string {
-	return noteHeader(r) + fmt.Sprintf(pick(r, onSubjectNotes[purpose]), 120+r.IntN(110))
+// onSubjectNotesRev1 replaces the two cv_outcomes notes that #55 found
+// ambiguous against the proposition "about major adverse cardiovascular
+// events in patients on lipid-lowering therapy": an event-free follow-up
+// (#0) and an MI that predates therapy (#2). Each replacement records a MACE
+// that occurred on therapy (a nonfatal MI; a cardiovascular death), stated
+// as clinical fact without the note labelling itself, since the PIP is told
+// to judge by content, not self-description. Same count and arity, so the
+// random draws, and every other record, are unchanged.
+var onSubjectNotesRev1 = map[string][]string{
+	"pcsk9_trial_analysis": onSubjectNotes["pcsk9_trial_analysis"],
+	"cv_outcomes": {
+		"Admitted with NSTEMI after two years on rosuvastatin 40 mg; LDL-C %d mg/dL on admission. Troponin rise confirmed; managed with PCI.",
+		onSubjectNotes["cv_outcomes"][1],
+		"Cardiovascular death three years into statin plus ezetimibe therapy; last LDL-C %d mg/dL. Sudden cardiac arrest at home; resuscitation unsuccessful.",
+		onSubjectNotes["cv_outcomes"][3],
+	},
+}
+
+func onSubjectNote(r *rand.Rand, purpose string, rev int) string {
+	notes := onSubjectNotes
+	if rev >= 1 {
+		notes = onSubjectNotesRev1
+	}
+	return noteHeader(r) + fmt.Sprintf(pick(r, notes[purpose]), 120+r.IntN(110))
 }
 
 func offSubjectNote(r *rand.Rand) string {

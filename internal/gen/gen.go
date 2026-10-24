@@ -24,6 +24,9 @@ type Config struct {
 	// G2 stages; zero in G0.
 	HeaderPairs int
 	Traces      TraceConfig
+	// NoteRevision selects the on-subject note templates: 0 is the original
+	// set (G0, G2a, G2b, whose frozen corpora it reproduces), 1 the #55 fix.
+	NoteRevision int
 }
 
 // G0 is the G0 corpus: 1,000 records.
@@ -35,6 +38,10 @@ var (
 		HeaderPairs: 6_000, Traces: TraceConfig{Cost: 400, Delegation: 600, Relay: 600}}
 	G2b = Config{Seed: 20261019, Families: 70_000, BasePerFamily: 8, Injected: 140_000, Variants: 140_000,
 		HeaderPairs: 60_000, Traces: TraceConfig{Cost: 4_000, Delegation: 6_000, Relay: 6_000}}
+	// G2c is G2a regenerated with the #55 note fix: same seed and shape, so
+	// it differs from G2a only in the records built from the two fixed
+	// templates.
+	G2c = func() Config { c := G2a; c.NoteRevision = 1; return c }()
 )
 
 // Size is the number of records the configuration produces.
@@ -77,6 +84,8 @@ type target struct {
 
 type generator struct {
 	r *rand.Rand
+	// noteRev is Config.NoteRevision.
+	noteRev int
 	// quota and drawn balance the scenario mix; see pickTarget.
 	quota []float64
 	drawn []int
@@ -124,7 +133,7 @@ var targets = []target{
 // verdict differs from its intended verdict (a generator bug) or if any
 // injected record is not denied (Law 2).
 func Generate(cfg Config) ([]Item, error) {
-	g := &generator{r: rand.New(rand.NewPCG(cfg.Seed, cfg.Seed^0x9e3779b97f4a7c15))}
+	g := &generator{r: rand.New(rand.NewPCG(cfg.Seed, cfg.Seed^0x9e3779b97f4a7c15)), noteRev: cfg.NoteRevision}
 	g.setQuotas(cfg.Families * cfg.BasePerFamily)
 	var items []Item
 	n := 0
@@ -539,7 +548,7 @@ func buildReadNote(onSubject bool) builder {
 		setNote(g, &f)
 		text := offSubjectNote(g.r)
 		if onSubject {
-			text = onSubjectNote(g.r, fam.purpose.ID)
+			text = onSubjectNote(g.r, fam.purpose.ID, g.noteRev)
 		}
 		return f, corpus.Payload{Kind: corpus.PayloadDocument, Text: text}, corpus.Semantic{DocOnSubject: ptr(onSubject)}
 	}
@@ -578,7 +587,7 @@ func buildIdentifiedWrongRole(g *generator, fam *family) (corpus.Facts, corpus.P
 	// only the role rule applies.
 	if slices.Contains(roles(f.Chain), vocab.RoleCollaborator) || g.r.IntN(3) == 0 {
 		setNote(g, &f)
-		return f, corpus.Payload{Kind: corpus.PayloadDocument, Text: onSubjectNote(g.r, fam.purpose.ID)}, corpus.Semantic{DocOnSubject: ptr(true)}
+		return f, corpus.Payload{Kind: corpus.PayloadDocument, Text: onSubjectNote(g.r, fam.purpose.ID, g.noteRev)}, corpus.Semantic{DocOnSubject: ptr(true)}
 	}
 	d := pick(g.r, identifiedFor(fam.purpose.ID))
 	setQuery(&f, d)

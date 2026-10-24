@@ -168,6 +168,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Generator: two cv_outcomes on-subject note templates were ambiguous
+  against their proposition (#55). An event-free follow-up and an MI that
+  predates therapy were labelled "about major adverse cardiovascular events
+  in patients on lipid-lowering therapy". `NoteRevision` 1 replaces them
+  with notes that record a MACE on therapy. Revision 0 still reproduces the
+  frozen G0, G2a and G2b corpora byte for byte. New corpus `corpus/g2c`
+  (hash `1333d39b…`) is G2a regenerated with the fix: 1,926 records differ,
+  exactly the #55 set, and the oracle and policies are unchanged.
+
 - spore.host fleet defects found during G2 (#33):
   - A shard counts as done only if it has no repairable gate errors. A
     crashed model server no longer passes as 5,000 decided records. Run
@@ -179,4 +188,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A launch that spawn reports as failed is swept for any instance it
     created (`sweep.sh`). `try-launch.sh` sweeps the other regions after a
     success, and the dead-man watcher checks every region. `launch.sh`
-    refuses a run name that is already live.
+    refuses a run name that is already live, and passes
+    `--terminate-on-error`, so spawn terminates an instance whose spored never
+    came up (the root cause of the G2 orphan, #50).

@@ -71,13 +71,16 @@ PURCHASE=(--spot)
 [ "${AMBIT_SPOT:-1}" = 0 ] && PURCHASE=()
 [ -n "${AMBIT_AZ:-}" ] && PURCHASE+=(--az "$AMBIT_AZ")
 if ! spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
-	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate \
+	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate --terminate-on-error \
 	--volume-size "${AMBIT_VOLUME:-80}" --tag project=ambit --tag "run=$NAME" \
 	--s3-read "$BUCKET" --s3-write "$BUCKET" \
 	--command "$CMD" -y; then
 	# spawn can create the instance and still report failure; nothing would
-	# watch it (on 2026-10-20 one ran 74 h past its TTL). Give EC2 a minute
-	# to show it, then terminate whatever this attempt left.
+	# watch it (on 2026-10-20 one ran 74 h past its TTL: it never booted far
+	# enough to start spored, and spawn leaves such an instance running unless
+	# --terminate-on-error is set). That flag covers spored's verification;
+	# spawn returns other post-launch errors without terminating, so give EC2
+	# a minute to show the instance, then terminate whatever this attempt left.
 	sleep 60
 	scripts/spore/sweep.sh "$NAME" "$REGION" >&2
 	exit 1
