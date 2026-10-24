@@ -70,11 +70,18 @@ CMD="aws s3 cp $STAGE/gpu-job.sh /tmp/gpu-job.sh --quiet && bash /tmp/gpu-job.sh
 PURCHASE=(--spot)
 [ "${AMBIT_SPOT:-1}" = 0 ] && PURCHASE=()
 [ -n "${AMBIT_AZ:-}" ] && PURCHASE+=(--az "$AMBIT_AZ")
-if ! spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
+if ! spawn_out=$(spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
 	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate --terminate-on-error \
 	--volume-size "${AMBIT_VOLUME:-80}" --tag project=ambit --tag "run=$NAME" \
 	--s3-read "$BUCKET" --s3-write "$BUCKET" \
-	--command "$CMD" -y; then
+	--command "$CMD" -y 2>&1); then
+	echo "$spawn_out"
+	# A refused RunInstances (no capacity, a quota, an unpriced type) creates
+	# nothing, so there is nothing to wait for; try-launch makes dozens of
+	# these when capacity is short.
+	if grep -qE "InsufficientInstanceCapacity|no Spot capacity|InsufficientCapacity|MaxSpotInstanceCountExceeded|VcpuLimitExceeded|SpotMaxPriceTooLow|Unsupported|cannot determine the on-demand price" <<<"$spawn_out"; then
+		exit 1
+	fi
 	# spawn can create the instance and still report failure; nothing would
 	# watch it (on 2026-10-20 one ran 74 h past its TTL: it never booted far
 	# enough to start spored, and spawn leaves such an instance running unless
@@ -85,6 +92,7 @@ if ! spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[
 	scripts/spore/sweep.sh "$NAME" "$REGION" >&2
 	exit 1
 fi
+echo "$spawn_out"
 # Local backstop: terminate the instance through the EC2 API 15 minutes past
 # its TTL if it is still alive (see deadman.sh).
 mkdir -p "$HOME/.xtmp/ambit-logs"
