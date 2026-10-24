@@ -41,11 +41,14 @@ server() {
 	esac
 }
 
-# done_keys lists the keys of finished, complete runs on this corpus.
+# done_keys lists the keys of finished, complete runs on this corpus with no
+# gate errors. A run whose model server crashed decides every record as an
+# error; counting it done (as on 2026-10-19) hides 5,000 errors per shard. A
+# shard with any error is re-run in full, which re-asks exactly its errors.
 done_keys() {
 	for m in "$RESULTS"/*/manifest.json; do
 		[ -f "$m" ] || continue
-		jq -r --arg h "$HASH" 'select(.corpus_hash == $h and .finished != null and .decided == .records and (.stopped // "") == "" and ((.repair_of // []) | length) == 0) | "\(.arm) \(.range_start) \(.range_end)"' "$m"
+		jq -r --arg h "$HASH" 'select(.corpus_hash == $h and .finished != null and .decided == .records and .errors == 0 and (.stopped // "") == "" and ((.repair_of // []) | length) == 0) | "\(.arm) \(.range_start) \(.range_end)"' "$m"
 	done | sort -u
 }
 
