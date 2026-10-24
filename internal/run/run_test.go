@@ -55,13 +55,15 @@ func testCorpus(t *testing.T) string {
 }
 
 // fakeGate counts calls per record and the most decided at once. Records
-// in stopAt fail with a spend-cap error.
+// in stopAt fail with a spend-cap error, and records in errAt with that
+// error.
 type fakeGate struct {
 	mu       sync.Mutex
 	calls    map[string]int
 	inflight atomic.Int32
 	peak     atomic.Int32
 	stopAt   map[string]bool
+	errAt    map[string]string
 }
 
 func (g *fakeGate) Name() string { return "fake" }
@@ -81,6 +83,9 @@ func (g *fakeGate) Decide(ctx context.Context, r corpus.Record) arms.Decision {
 			Resource: pdp.Entity{Type: "Dataset", ID: "d"}}}}}
 	if g.stopAt[r.ID] {
 		d.Error = "per-run cap: test"
+	}
+	if e, ok := g.errAt[r.ID]; ok {
+		d.Error = e
 	}
 	if arms.RecordOf(ctx) != r.ID {
 		d.Error = "record label " + arms.RecordOf(ctx)
@@ -187,6 +192,23 @@ func TestRunSpendStop(t *testing.T) {
 		if conc == 1 && (m.Decided != 10 || len(g.calls) != 11) {
 			t.Fatalf("sequential: decided %d, started %d; want 10, 11", m.Decided, len(g.calls))
 		}
+	}
+}
+
+// TestRunRepairableErrors checks that the manifest counts the errors a
+// re-run would re-ask apart from the ones that stay denials.
+func TestRunRepairableErrors(t *testing.T) {
+	g := &fakeGate{calls: map[string]int{}, errAt: map[string]string{
+		"r0001": "503 Service Unavailable",
+		"r0002": "Post \"http://127.0.0.1:8000/v1/systemone\": read: connection reset by peer",
+		"r0003": "no PIP question for x",
+	}}
+	m, err := Run(context.Background(), g, Options{CorpusDir: testCorpus(t), ResultsDir: t.TempDir(), Concurrency: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Errors != 3 || m.RepairableErrors != 2 || m.Decided != m.Records {
+		t.Fatalf("errors %d, repairable %d, decided %d/%d; want 3, 2, all", m.Errors, m.RepairableErrors, m.Decided, m.Records)
 	}
 }
 

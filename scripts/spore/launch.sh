@@ -31,10 +31,12 @@ BUCKET="spawn-results-$ACCOUNT-$REGION"
 STAGE="s3://$BUCKET/ambit/$NAME"
 # The sweep after a failed launch terminates every instance tagged with this
 # run name, so a name that is already live is refused rather than swept.
-if [ -n "$(aws ec2 describe-instances --region "$REGION" \
+live=$(aws ec2 describe-instances --region "$REGION" \
 	--filters "Name=tag:project,Values=ambit" "Name=tag:run,Values=$NAME" \
 	"Name=instance-state-name,Values=pending,running,stopping,stopped" \
-	--query 'Reservations[].Instances[].InstanceId' --output text)" ]; then
+	--query 'Reservations[].Instances[].InstanceId' --output text) ||
+	{ echo "cannot check for a live $NAME in $REGION" >&2; exit 1; }
+if [ -n "$live" ]; then
 	echo "an instance of $NAME is already live in $REGION; choose another name" >&2
 	exit 1
 fi

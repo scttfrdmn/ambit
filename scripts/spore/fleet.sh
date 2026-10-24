@@ -6,7 +6,8 @@
 #   scripts/spore/fleet.sh <fleet-name> <corpus-dir> <queue-file> <results-dir> \
 #       <instances> <shards-per-instance> <ttl> <cost-limit>
 #
-# MAXTRIES (default 3) bounds the finished-with-errors runs of any one shard.
+# MAXTRIES (default 3) bounds the finished-with-errors runs of any one shard;
+# a fleet that gives up on a shard exits 3.
 #
 # <queue-file> has one shard per line, in `ambit run` arguments, each with an
 # explicit -offset and -limit. A shard is done when <results-dir> holds a
@@ -115,7 +116,7 @@ while :; do
 	fi
 	if [ ${#todo[@]} -eq 0 ] && [ "$nlive" -eq 0 ] && [ "$gaveup" -gt 0 ]; then
 		log "stopping: $gaveup shards finished ${MAXTRIES:-3} times each with repairable errors; see their runs"
-		break
+		exit 3
 	fi
 	while [ $nlive -lt "$W" ] && [ ${#todo[@]} -gt 0 ]; do
 		n=$(( $(ls "$STATE" | grep -E '^[0-9]+$' | sort -n | tail -1 || echo 0) + 1 ))
