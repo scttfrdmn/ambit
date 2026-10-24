@@ -8,14 +8,16 @@
 # ones try-launch.sh tries). Used after a launch attempt that reported failure
 # (spawn can create the instance and still fail, and nothing else then
 # watches it), and by the dead-man watcher. Prints one line per instance
-# terminated; exits 0 whether or not it found any.
+# terminated. Exits 0 whether or not it found any, and 1 if a region could
+# not be listed.
 set -uo pipefail
 NAME="$1"
 shift
 REGIONS=("$@")
 [ ${#REGIONS[@]} -gt 0 ] || read -r -a REGIONS <<<"${AMBIT_REGIONS:-us-east-1 us-west-2}"
 seen=" "
-for region in "${REGIONS[@]}"; do
+status=0
+for region in ${REGIONS[@]+"${REGIONS[@]}"}; do
 	case "$seen" in *" $region "*) continue ;; esac
 	seen="$seen$region "
 	ids=$(aws ec2 describe-instances --region "$region" \
@@ -23,6 +25,7 @@ for region in "${REGIONS[@]}"; do
 		"Name=instance-state-name,Values=pending,running,stopping,stopped" \
 		--query 'Reservations[].Instances[].InstanceId' --output text) || {
 		echo "$(date -u +%FT%TZ) $NAME: cannot list instances in $region" >&2
+		status=1
 		continue
 	}
 	for id in $ids; do
@@ -30,3 +33,4 @@ for region in "${REGIONS[@]}"; do
 			echo "$(date -u +%FT%TZ) $NAME ($id, $region) terminated"
 	done
 done
+exit $status

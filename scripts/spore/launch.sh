@@ -59,6 +59,15 @@ CMD="aws s3 cp $STAGE/gpu-job.sh /tmp/gpu-job.sh --quiet && bash /tmp/gpu-job.sh
 PURCHASE=(--spot)
 [ "${AMBIT_SPOT:-1}" = 0 ] && PURCHASE=()
 [ -n "${AMBIT_AZ:-}" ] && PURCHASE+=(--az "$AMBIT_AZ")
+# The sweep below terminates every instance tagged with this run name, so a
+# name that is already live is refused rather than swept.
+if [ -n "$(aws ec2 describe-instances --region "$REGION" \
+	--filters "Name=tag:project,Values=ambit" "Name=tag:run,Values=$NAME" \
+	"Name=instance-state-name,Values=pending,running,stopping,stopped" \
+	--query 'Reservations[].Instances[].InstanceId' --output text)" ]; then
+	echo "an instance of $NAME is already live in $REGION; choose another name" >&2
+	exit 1
+fi
 if ! spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
 	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate \
 	--volume-size "${AMBIT_VOLUME:-80}" --tag project=ambit --tag "run=$NAME" \
@@ -68,7 +77,7 @@ if ! spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[
 	# watch it (on 2026-10-20 one ran 74 h past its TTL). Give EC2 a minute
 	# to show it, then terminate whatever this attempt left.
 	sleep 60
-	"$(dirname "$0")/sweep.sh" "$NAME" "$REGION" >&2
+	scripts/spore/sweep.sh "$NAME" "$REGION" >&2
 	exit 1
 fi
 # Local backstop: terminate the instance through the EC2 API 15 minutes past

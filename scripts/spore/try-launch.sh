@@ -14,7 +14,9 @@ for spot in 1 0; do
 				if grep -q "staged at" <<<"$out"; then
 					# An earlier attempt that reported failure may have
 					# left an instance in another region; launch.sh has
-					# already swept the region of each failed attempt.
+					# already swept the region of each failed attempt. One
+					# that appears here later than launch.sh's minute is
+					# left to the dead-man watcher, at TTL + 15 minutes.
 					for other in ${AMBIT_REGIONS:-us-east-1 us-west-2}; do
 						[ "$other" = "$region" ] || scripts/spore/sweep.sh "$1" "$other" >&2
 					done
