@@ -125,4 +125,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A launch that spawn reports as failed is swept for any instance it
     created (`sweep.sh`). `try-launch.sh` sweeps the other regions after a
     success, and the dead-man watcher checks every region. `launch.sh`
-    refuses a run name that is already live.
+    refuses a run name that is already live, and passes
+    `--terminate-on-error`, so spawn terminates an instance whose spored never
+    came up (the root cause of the G2 orphan, #50).
