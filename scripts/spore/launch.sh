@@ -29,6 +29,15 @@ TYPE="${AMBIT_INSTANCE:-g6.xlarge}"
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 BUCKET="spawn-results-$ACCOUNT-$REGION"
 STAGE="s3://$BUCKET/ambit/$NAME"
+# The sweep after a failed launch terminates every instance tagged with this
+# run name, so a name that is already live is refused rather than swept.
+if [ -n "$(aws ec2 describe-instances --region "$REGION" \
+	--filters "Name=tag:project,Values=ambit" "Name=tag:run,Values=$NAME" \
+	"Name=instance-state-name,Values=pending,running,stopping,stopped" \
+	--query 'Reservations[].Instances[].InstanceId' --output text)" ]; then
+	echo "an instance of $NAME is already live in $REGION; choose another name" >&2
+	exit 1
+fi
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/ambit-stage.XXXXXX")
 trap 'rm -rf "$TMP"' EXIT
 
@@ -59,15 +68,6 @@ CMD="aws s3 cp $STAGE/gpu-job.sh /tmp/gpu-job.sh --quiet && bash /tmp/gpu-job.sh
 PURCHASE=(--spot)
 [ "${AMBIT_SPOT:-1}" = 0 ] && PURCHASE=()
 [ -n "${AMBIT_AZ:-}" ] && PURCHASE+=(--az "$AMBIT_AZ")
-# The sweep below terminates every instance tagged with this run name, so a
-# name that is already live is refused rather than swept.
-if [ -n "$(aws ec2 describe-instances --region "$REGION" \
-	--filters "Name=tag:project,Values=ambit" "Name=tag:run,Values=$NAME" \
-	"Name=instance-state-name,Values=pending,running,stopping,stopped" \
-	--query 'Reservations[].Instances[].InstanceId' --output text)" ]; then
-	echo "an instance of $NAME is already live in $REGION; choose another name" >&2
-	exit 1
-fi
 if ! spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION" ${PURCHASE[@]+"${PURCHASE[@]}"} \
 	--ttl "$TTL" --cost-limit "$LIMIT" --on-complete terminate \
 	--volume-size "${AMBIT_VOLUME:-80}" --tag project=ambit --tag "run=$NAME" \
