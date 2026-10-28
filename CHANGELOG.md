@@ -176,7 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - G3 swarms no longer turn queueing into gate errors (#21). At N = 10,000 with
-  no in-flight cap, the `ambit run` client limits (llama 10 min, strands
+  no in-flight cap, the `ambit run` client limits (llama 10 min and llama-server 600 s, strands
   2 min, Bedrock 2 min with 10 attempts, Decisions 10 attempts) failed up to
   64% of calls. `ambit swarm` now lets each call wait up to 6 h, with up to
   1,000 retries, so its registered latency includes the wait. `ambit run` is

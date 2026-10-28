@@ -187,4 +187,5 @@ func waitForGates() {
 	bedrock.CallTimeout = SwarmCallWait
 	bedrock.MaxAttempts = 1000
 	hosted.MaxAttempts = 1000
+	hosted.Timeout = SwarmCallWait
 }
