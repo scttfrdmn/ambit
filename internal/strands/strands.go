@@ -77,8 +77,9 @@ var HobsonV21 = Pin{
 // answers as the checkpoint it loaded; this is the schema's default.
 const RequestModel = "strands-decider-latest"
 
-// Timeout bounds one request, as in the upstream example client.
-const Timeout = 120 * time.Second
+// Timeout bounds one request, as in the upstream example client. A swarm
+// raises it (cmd/ambit swarm), as for internal/jeb.
+var Timeout = 120 * time.Second
 
 // Question is a typed question. Type is "noul" or "choice". A noul's
 // criteria, if any, describe "true" and "false"; a choice's map each option

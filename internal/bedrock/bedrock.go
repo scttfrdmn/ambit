@@ -42,6 +42,14 @@ const (
 // ablation, not a tuning knob.
 const ReasoningEffort = "low"
 
+// CallTimeout bounds one call, retries included, and MaxAttempts the SDK's
+// attempts. A swarm raises both (cmd/ambit swarm): its gate latency includes
+// throttling and retries, so a call waits rather than fails.
+var (
+	CallTimeout = 2 * time.Minute
+	MaxAttempts = 10
+)
+
 // Answer is one reply.
 type Answer struct {
 	// Word is the final answer with surrounding whitespace removed.
@@ -76,7 +84,7 @@ func New(ctx context.Context, region string) (*Client, error) {
 			return retry.AddWithMaxAttempts(retry.NewStandard(func(o *retry.StandardOptions) {
 				o.RateLimiter = ratelimit.None
 				o.MaxBackoff = 30 * time.Second
-			}), 10)
+			}), MaxAttempts)
 		}))
 	if err != nil {
 		return nil, err
@@ -123,7 +131,7 @@ func (c *Client) Ask(ctx context.Context, system, user string) (Answer, error) {
 	if err != nil {
 		return Answer{}, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, CallTimeout)
 	defer cancel()
 	start := time.Now()
 	out, err := c.rt.InvokeModel(ctx, &bedrockruntime.InvokeModelInput{

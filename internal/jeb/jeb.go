@@ -81,6 +81,11 @@ type Answer struct {
 // P returns the probability of "true" for a noul.
 func (a Answer) P() float64 { return a.Probs["true"] }
 
+// Timeout bounds one request. A swarm raises it (cmd/ambit swarm): its
+// gate latency includes queueing at the server, so a call waits rather
+// than fails.
+var Timeout = 10 * time.Minute
+
 // Client talks to one llama-server.
 type Client struct {
 	URL  string
@@ -93,7 +98,7 @@ type Client struct {
 
 // New connects and resolves the label tokens.
 func New(ctx context.Context, url string) (*Client, error) {
-	c := &Client{URL: strings.TrimRight(url, "/"), HTTP: &http.Client{Timeout: 10 * time.Minute}}
+	c := &Client{URL: strings.TrimRight(url, "/"), HTTP: &http.Client{Timeout: Timeout}}
 	if err := c.resolveLabels(ctx); err != nil {
 		return nil, err
 	}

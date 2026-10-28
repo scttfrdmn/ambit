@@ -11,9 +11,13 @@ import (
 	"time"
 
 	"github.com/scttfrdmn/ambit/internal/arms"
+	"github.com/scttfrdmn/ambit/internal/bedrock"
 	"github.com/scttfrdmn/ambit/internal/corpus"
+	"github.com/scttfrdmn/ambit/internal/hosted"
+	"github.com/scttfrdmn/ambit/internal/jeb"
 	"github.com/scttfrdmn/ambit/internal/lki/quill"
 	"github.com/scttfrdmn/ambit/internal/run"
+	"github.com/scttfrdmn/ambit/internal/strands"
 	"github.com/scttfrdmn/ambit/internal/swarm"
 )
 
@@ -33,6 +37,7 @@ func cmdSwarm(args []string) error {
 	scaled := fs.Bool("scaled-servers", false, "a G3 scaled-server secondary run (servers at 4x their G2 slots): reported apart, never in the registered verdicts")
 	instance := fs.String("instance-type", "", "EC2 instance type the run shares with its model server, for the GPU cost (empty off EC2)")
 	fs.Parse(args)
+	waitForGates()
 
 	// SIGTERM too: a spore TTL stop finalizes what it can, as an interrupt
 	// does.
@@ -166,4 +171,20 @@ func cmdSwarm(args []string) error {
 		return fmt.Errorf("swarm stopped: %s", m.Stopped)
 	}
 	return nil
+}
+
+// SwarmCallWait bounds one gate call's wait in a swarm. The registered gate
+// latency (#21) includes queueing at a shared model server and provider
+// throttling and retries, so a swarm call waits for its answer instead of
+// failing on a client timeout: at N = 10,000 with no in-flight cap, the
+// `ambit run` limits turned up to 64% of calls into errors.
+const SwarmCallWait = 6 * time.Hour
+
+// waitForGates raises every client's per-call limits to SwarmCallWait.
+func waitForGates() {
+	jeb.Timeout = SwarmCallWait
+	strands.Timeout = SwarmCallWait
+	bedrock.CallTimeout = SwarmCallWait
+	bedrock.MaxAttempts = 1000
+	hosted.MaxAttempts = 1000
 }
