@@ -4,7 +4,8 @@
 #   gpu-job.sh <stage-s3-prefix>
 #
 # Fetches the staged bundle (ambit binary, corpus, and RUNS: one line of
-# `ambit run` arguments per run), fetches the pinned model weights, starts the
+# `ambit run` arguments per run, or `swarm` followed by `ambit swarm`
+# arguments for a G3 live swarm), fetches the pinned model weights, starts the
 # model servers the runs need, runs each line in order, and pushes
 # the log and results to <stage>/out/<host>/ every minute while it runs and
 # once at the end. No secrets are used or written. The exit code is ambit's
@@ -39,9 +40,19 @@ aws s3 cp "$STAGE/bundle.tgz" "$W/bundle.tgz" --quiet && tar xzf bundle.tgz || {
 mkdir -p results
 log "runs:"; sed 's/^/  /' RUNS | tee -a "$LOG"
 ARMS=$(grep -oE -- '-arm [a-z0-9-]+' RUNS | awk '{print $2}' | sort -u | tr '\n' ' ')
-# One llama-server slot per concurrent request across the Jebadiah runs.
-NP=$(grep -E -- '-arm (a-local|b-4b|b)( |$)' RUNS | grep -oE -- '-concurrency [0-9]+' | awk '{print $2}' | sort -n | tail -1)
-NP=${NP:-1}
+# One llama-server slot per concurrent request across the Jebadiah runs. A
+# swarm has no request cap, so it gets G2's slot count (16, registration #21:
+# "each model server runs as at G2"); "#llama-np N" in RUNS overrides it, for
+# the scaled-server secondary.
+NP=$(grep -E -- '-arm (a-local|b-4b|b)( |$)' RUNS | grep -v '^swarm ' | grep -oE -- '-concurrency [0-9]+' | awk '{print $2}' | sort -n | tail -1)
+grep -qE -- '^swarm .*-arm (a-local|b-4b|b)( |$)' RUNS && NP=$(( ${NP:-0} > 16 ? NP : 16 ))
+NP=$(sed -nE 's/^#llama-np ([0-9]+).*/\1/p' RUNS | tail -1 | grep . || echo "${NP:-1}")
+# d3 runs one slot, as at G2; "#d3-np N" in RUNS overrides it.
+D3NP=$(sed -nE 's/^#d3-np ([0-9]+).*/\1/p' RUNS | tail -1 | grep . || echo 1)
+# The instance type, recorded in swarm manifests for the GPU cost.
+IMDS=$(curl -fsS -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 60" http://169.254.169.254/latest/api/token 2>/dev/null)
+ITYPE=$(curl -fsS -H "X-aws-ec2-metadata-token: $IMDS" http://169.254.169.254/latest/meta-data/instance-type 2>/dev/null)
+log "instance type ${ITYPE:-unknown}; llama slots $NP; d3 slots $D3NP"
 
 # Jebadiah 4B v2, pinned (see internal/jeb.Jebadiah4BV2).
 JEB_URL=https://huggingface.co/frontier-infra/jebadiah-4b-v2-GGUF/resolve/446099f37ca1cea4324d8866b44a1dbc15f77c94/jebadiah-4b-v2-Q8_0.gguf
@@ -116,7 +127,7 @@ elif needs_d3; then
 	curl -fsSL -o d3.gguf "$D3_URL" && echo "$D3_SHA  d3.gguf" | sha256sum -c --quiet || { log "d3 fetch or hash failed"; exit 8; }
 	ensure_docker
 	sudo docker run -d --gpus all --name d3 -p 127.0.0.1:8090:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
-		-m /models/d3.gguf -c 4096 -np 1 -ub 4096 -b 4096 -ngl 999 --cache-ram 0 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
+		-m /models/d3.gguf -c $((D3NP * 4096)) -np "$D3NP" -ub 4096 -b 4096 -ngl 999 --cache-ram 0 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
 	( sudo docker logs -f d3 >"$W/d3.log" 2>&1 ) &
 	wait_health http://127.0.0.1:8090 || { log "d3 llama-server did not come up"; exit 8; }
 	log "d3 llama-server up"
@@ -151,14 +162,30 @@ while IFS= read -r line; do
 	case "$line" in "" | "#"*) continue ;; esac
 	log "run: $line"
 	read -r -a args <<<"$line"
-	./ambit run "${args[@]}" -results results >>"$LOG" 2>&1 </dev/null &
+	if [ "${args[0]}" = swarm ]; then
+		# A swarm records the server's slots and the instance type, so the
+		# report can price it and tell scaled-server runs apart.
+		extra=()
+		case " $line " in *" -instance-type "*) ;; *) [ -n "$ITYPE" ] && extra+=(-instance-type "$ITYPE") ;; esac
+		case " $line " in
+		*" -server-slots "*) ;;
+		*" -arm a-d3 "*) extra+=(-server-slots "$D3NP") ;;
+		*" -arm a-local "* | *" -arm b-4b "* | *" -arm b "*) extra+=(-server-slots "$NP") ;;
+		*" -arm a-strands "* | *" -arm b-strands "*) extra+=(-server-slots 1) ;;
+		esac
+		./ambit swarm "${args[@]:1}" ${extra[@]+"${extra[@]}"} -results results >>"$LOG" 2>&1 </dev/null &
+	else
+		./ambit run "${args[@]}" -results results >>"$LOG" 2>&1 </dev/null &
+	fi
 	pid=$!
 	# Watchdog: a run whose output stops growing for 10 minutes is stuck;
-	# kill it so the instance moves on instead of idling until its TTL.
-	last=$(wc -c <"$LOG"); idle=0
+	# kill it so the instance moves on instead of idling until its TTL. A
+	# swarm streams its calls into results/, so that counts as output too.
+	progress() { echo $(($(wc -c <"$LOG") + $(du -sb results 2>/dev/null | cut -f1))); }
+	last=$(progress); idle=0
 	while kill -0 $pid 2>/dev/null; do
 		sleep 30
-		now=$(wc -c <"$LOG")
+		now=$(progress)
 		if [ "$now" -eq "$last" ]; then idle=$((idle + 30)); else idle=0; last=$now; fi
 		if [ $idle -ge 600 ]; then log "no progress for 10 minutes; killing: $line"; kill $pid; sleep 5; kill -9 $pid 2>/dev/null; fi
 	done

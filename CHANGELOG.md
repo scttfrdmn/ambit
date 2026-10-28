@@ -96,6 +96,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GPU cost, and the manifests of quarantined shards.
 - G2c results at 10⁵ (`results/g2c/`), the #55-corrected confirmation
   registered on #56: manifests, decisions, the report and GPU cost.
+- `gpu-job.sh` runs G3 swarms: a RUNS line starting `swarm` runs
+  `ambit swarm` with the instance type and the model server's slots
+  recorded. `#llama-np N` and `#d3-np N` set server slots for the
+  scaled-server secondary; by default the slots are G2's. The watchdog
+  counts streamed results as progress (#46).
 - `scripts/spore`, which runs work on spore.host:
   - Stages a bundle and a runs file, then launches spot GPU instances with
     a TTL, a cost limit of at most $20, a `project=ambit` tag and a scoped
