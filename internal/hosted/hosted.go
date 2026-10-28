@@ -65,7 +65,7 @@ func FromEnv(l *Ledger) (*Client, error) {
 	if base == "" {
 		base = "https://api.openai.com"
 	}
-	return &Client{BaseURL: strings.TrimRight(base, "/"), Key: key, HTTP: &http.Client{Timeout: 2 * time.Minute}, Ledger: l}, nil
+	return &Client{BaseURL: strings.TrimRight(base, "/"), Key: key, HTTP: &http.Client{Timeout: Timeout}, Ledger: l}, nil
 }
 
 type request struct {
@@ -101,8 +101,14 @@ func EstimateTokens(state, instructions string) int64 {
 // Cost returns the cost of n input tokens in micro-dollars, rounded up.
 func Cost(n int64) int64 { return (n*InputMicrosPerMTok + 999_999) / 1_000_000 }
 
-// MaxAttempts bounds the HTTP attempts per call, the first included.
-const MaxAttempts = 10
+// Timeout bounds one HTTP attempt. A swarm raises it (cmd/ambit swarm): an
+// abandoned attempt could still be billed without reaching the ledger.
+var Timeout = 2 * time.Minute
+
+// MaxAttempts bounds the HTTP attempts per call, the first included. A swarm
+// raises it (cmd/ambit swarm): its gate latency includes rate-limit retries,
+// so a call waits rather than fails.
+var MaxAttempts = 10
 
 // Ask asks one predicate about state. Rate limits (a 429 that is not a
 // quota or billing error), 500, 502, 503, 504, and transport errors are

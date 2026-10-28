@@ -98,9 +98,11 @@ if needs_llama; then
 	# One slot per concurrent request, 4096 tokens each: every Arm A state
 	# fits (max 1,748 tokens in G1). --cache-ram 0 turns off the host-RAM
 	# prompt cache, which thrashed a 16 GiB g6.xlarge at 16 slots and hung the
-	# server; per-slot prefix reuse (cache_prompt) does not need it.
+	# server; per-slot prefix reuse (cache_prompt) does not need it. --timeout
+	# 21600 (6 h) keeps the server from dropping a request that queued for over
+	# its default 600 s, as G3 swarms' requests do at N = 10,000.
 	sudo docker run -d --gpus all --name llama -p 127.0.0.1:8080:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
-		-m /models/jeb.gguf -c $((NP * 4096)) -np "$NP" -ngl 999 --cache-ram 0 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
+		-m /models/jeb.gguf -c $((NP * 4096)) -np "$NP" -ngl 999 --cache-ram 0 --timeout 21600 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
 	( sudo docker logs -f llama >"$W/llama.log" 2>&1 ) &
 	wait_health http://127.0.0.1:8080 || { log "llama-server did not come up"; push; exit 5; }
 	log "llama-server up"
@@ -127,7 +129,7 @@ elif needs_d3; then
 	curl -fsSL -o d3.gguf "$D3_URL" && echo "$D3_SHA  d3.gguf" | sha256sum -c --quiet || { log "d3 fetch or hash failed"; exit 8; }
 	ensure_docker
 	sudo docker run -d --gpus all --name d3 -p 127.0.0.1:8090:8080 -v "$W:/models:ro" "$LLAMA_IMAGE" \
-		-m /models/d3.gguf -c $((D3NP * 4096)) -np "$D3NP" -ub 4096 -b 4096 -ngl 999 --cache-ram 0 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
+		-m /models/d3.gguf -c $((D3NP * 4096)) -np "$D3NP" -ub 4096 -b 4096 -ngl 999 --cache-ram 0 --timeout 21600 --host 0.0.0.0 --port 8080 >>"$LOG" 2>&1
 	( sudo docker logs -f d3 >"$W/d3.log" 2>&1 ) &
 	wait_health http://127.0.0.1:8090 || { log "d3 llama-server did not come up"; exit 8; }
 	log "d3 llama-server up"
