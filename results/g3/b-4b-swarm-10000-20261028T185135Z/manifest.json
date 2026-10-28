@@ -1,0 +1,43 @@
+{
+  "run": "b-4b-swarm-10000-20261028T185135Z",
+  "arm": "b-4b",
+  "kind": "swarm",
+  "corpus_hash": "1333d39b1cb9e2189639b7742e03d6d3481c448a2b4470c1387147510f8b8348",
+  "script_sha256": "193b46b4509ffbce27928472aff35e7dec498a4a7b5f10b54ac551b425da91db",
+  "git_commit": "1aa4a2fbb1f9a72babdc6885933e886032688fd0",
+  "git_dirty": false,
+  "models": {
+    "jebadiah": "frontier-infra/jebadiah-4b-v2-GGUF@446099f37ca1cea4324d8866b44a1dbc15f77c94/jebadiah-4b-v2-Q8_0.gguf sha256:36f4a54fe07ed79b186a2128bfb1598ba210b1ab0a945296069a4e5cdbb9875a"
+  },
+  "started": "2026-10-28T18:51:35Z",
+  "finished": "2026-10-28T19:21:43Z",
+  "script": {
+    "seed": 20261021,
+    "agents": 10000,
+    "calls": 4,
+    "max_task_agents": 15,
+    "probe_percent": 20,
+    "swarm_cap_percent": 80,
+    "task_cap_scale_percent": 100
+  },
+  "tasks": 1306,
+  "scripted_calls": 49379,
+  "gated": 49379,
+  "agents_ran": 10000,
+  "probes_ran": 0,
+  "swarm_cap_micros": 7124042745,
+  "swarm_spent_micros": 7164989194,
+  "concurrency": 0,
+  "wall_ns": 1808001315942,
+  "calls_per_second": 27.311373926889363,
+  "errors": 0,
+  "repairable_errors": 0,
+  "quill_entries": 49379,
+  "spend_micros": 0,
+  "run_cap_micros": 5000000,
+  "model_cost_micros": 0,
+  "host": "g3-llama-b-2",
+  "instance_type": "g6.2xlarge",
+  "server_slots": 16,
+  "cache_prompt": true
+}

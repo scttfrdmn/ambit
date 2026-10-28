@@ -131,13 +131,15 @@ func LoadSwarm(dir string) ([]*SwarmRun, error) {
 	}
 	var out []*SwarmRun
 	for _, r := range latest {
-		if r.Calls, err = corpus.ReadJSONL[swarm.Call](filepath.Join(r.Dir, "calls.jsonl")); err != nil {
-			return nil, err
+		// A run directory holds calls.jsonl and tasks.jsonl as written, or,
+		// in a committed export, gzipped shards (calls-000.jsonl.gz, ...).
+		if err = corpus.Each(r.Dir, "calls", func(c swarm.Call) error { r.Calls = append(r.Calls, c); return nil }); err != nil {
+			return nil, fmt.Errorf("%s: %w", r.Dir, err)
 		}
-		if r.Tasks, err = corpus.ReadJSONL[swarm.TaskResult](filepath.Join(r.Dir, "tasks.jsonl")); err != nil {
-			return nil, err
+		if err = corpus.Each(r.Dir, "tasks", func(t swarm.TaskResult) error { r.Tasks = append(r.Tasks, t); return nil }); err != nil {
+			return nil, fmt.Errorf("%s: %w", r.Dir, err)
 		}
-		if r.QuillDet, err = readQuillDet(filepath.Join(r.Dir, "quill.jsonl")); err != nil {
+		if r.QuillDet, err = readQuillDet(r.Dir); err != nil {
 			return nil, fmt.Errorf("%s: %w", r.Dir, err)
 		}
 		out = append(out, r)
@@ -203,10 +205,15 @@ func countCalls(path string) (int, error) {
 
 // readQuillDet reads a quill log into call ID -> whether the entry's final
 // PDP decision names a determining policy (the one arms.Cedar reports).
-func readQuillDet(path string) (map[string]bool, error) {
-	es, err := quill.ReadAll(path)
+func readQuillDet(dir string) (map[string]bool, error) {
+	es, err := quill.ReadAll(filepath.Join(dir, "quill.jsonl"))
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
+		// A committed export gzips the quill as quill-000.jsonl.gz.
+		es = nil
+		if shards, _ := filepath.Glob(filepath.Join(dir, "quill-[0-9][0-9][0-9].jsonl.gz")); len(shards) == 0 {
+			return nil, nil
+		}
+		err = corpus.Each(dir, "quill", func(e quill.Entry) error { es = append(es, &e); return nil })
 	}
 	if err != nil {
 		return nil, err
