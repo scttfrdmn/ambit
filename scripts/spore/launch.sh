@@ -78,8 +78,10 @@ if ! spawn_out=$(spawn launch "$NAME" --instance-type "$TYPE" --region "$REGION"
 	echo "$spawn_out"
 	# A refused RunInstances (no capacity, a quota, an unpriced type) creates
 	# nothing, so there is nothing to wait for; try-launch makes dozens of
-	# these when capacity is short.
-	if grep -qE "InsufficientInstanceCapacity|no Spot capacity|InsufficientCapacity|MaxSpotInstanceCountExceeded|VcpuLimitExceeded|SpotMaxPriceTooLow|Unsupported|cannot determine the on-demand price" <<<"$spawn_out"; then
+	# these when capacity is short. spawn prints the instance ID on every
+	# failure after creation, so the wait is skipped only when none appears.
+	if ! grep -qE '(^|[^a-z0-9-])i-[0-9a-f]{8,17}' <<<"$spawn_out" &&
+		grep -qE "InsufficientInstanceCapacity|no Spot capacity|InsufficientCapacity|MaxSpotInstanceCountExceeded|VcpuLimitExceeded|SpotMaxPriceTooLow|Unsupported|cannot determine the on-demand price" <<<"$spawn_out"; then
 		exit 1
 	fi
 	# spawn can create the instance and still report failure; nothing would
