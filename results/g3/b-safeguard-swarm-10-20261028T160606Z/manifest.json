@@ -1,0 +1,41 @@
+{
+  "run": "b-safeguard-swarm-10-20261028T160606Z",
+  "arm": "b-safeguard",
+  "kind": "swarm",
+  "corpus_hash": "1333d39b1cb9e2189639b7742e03d6d3481c448a2b4470c1387147510f8b8348",
+  "script_sha256": "6117c3c169fe0859b2915b614dd10ec0705a6ad9380733021dd930895c4f3e65",
+  "git_commit": "a0b242e87da6201113162767c30ca70bf566c404",
+  "git_dirty": false,
+  "models": {
+    "safeguard": "bedrock/openai.gpt-oss-safeguard-120b effort low region us-east-1; cost axis at list price (internal account)"
+  },
+  "started": "2026-10-28T16:06:06Z",
+  "finished": "2026-10-28T16:06:13Z",
+  "script": {
+    "seed": 20261021,
+    "agents": 10,
+    "calls": 4,
+    "max_task_agents": 15,
+    "probe_percent": 20,
+    "swarm_cap_percent": 80,
+    "task_cap_scale_percent": 100
+  },
+  "tasks": 2,
+  "scripted_calls": 48,
+  "gated": 44,
+  "agents_ran": 9,
+  "probes_ran": 0,
+  "swarm_cap_micros": 1608549,
+  "swarm_spent_micros": 1606837,
+  "concurrency": 0,
+  "wall_ns": 7894693375,
+  "calls_per_second": 5.57336401934673,
+  "errors": 0,
+  "repairable_errors": 0,
+  "quill_entries": 44,
+  "spend_micros": 0,
+  "run_cap_micros": 5000000,
+  "model_cost_micros": 1612,
+  "host": "terror",
+  "cache_prompt": false
+}

@@ -96,6 +96,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GPU cost, and the manifests of quarantined shards.
 - G2c results at 10⁵ (`results/g2c/`), the #55-corrected confirmation
   registered on #56: manifests, decisions, the report and GPU cost.
+- G3 results (`results/g3/`): live-swarm runs at N = 10 to 10,000 for the
+  ten arms, with the swarm report. The swarm report also reads gzipped
+  exports (`calls-000.jsonl.gz`, `tasks-000.jsonl.gz`, `quill-000.jsonl.gz`).
 - `gpu-job.sh` runs G3 swarms: a RUNS line starting `swarm` runs
   `ambit swarm` with the instance type and the model server's slots
   recorded. `#llama-np N` and `#d3-np N` set server slots for the

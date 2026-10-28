@@ -1,0 +1,41 @@
+{
+  "run": "b-hosted-swarm-100-20261028T160728Z",
+  "arm": "b-hosted",
+  "kind": "swarm",
+  "corpus_hash": "1333d39b1cb9e2189639b7742e03d6d3481c448a2b4470c1387147510f8b8348",
+  "script_sha256": "8c1e1a734dcc33a54c53f3271b43f6a6dffeac886864b98f03a03593ccd6d75f",
+  "git_commit": "a0b242e87da6201113162767c30ca70bf566c404",
+  "git_dirty": false,
+  "models": {
+    "hosted": "openai/decisions/gpt-6-luna"
+  },
+  "started": "2026-10-28T16:07:28Z",
+  "finished": "2026-10-28T16:07:28Z",
+  "script": {
+    "seed": 20261021,
+    "agents": 100,
+    "calls": 4,
+    "max_task_agents": 15,
+    "probe_percent": 20,
+    "swarm_cap_percent": 80,
+    "task_cap_scale_percent": 100
+  },
+  "tasks": 14,
+  "scripted_calls": 488,
+  "gated": 488,
+  "agents_ran": 100,
+  "probes_ran": 0,
+  "swarm_cap_micros": 84508474,
+  "swarm_spent_micros": 83733526,
+  "concurrency": 0,
+  "wall_ns": 879871417,
+  "calls_per_second": 554.6264949302246,
+  "errors": 0,
+  "repairable_errors": 0,
+  "quill_entries": 488,
+  "spend_micros": 6401,
+  "run_cap_micros": 5000000,
+  "model_cost_micros": 6401,
+  "host": "terror",
+  "cache_prompt": false
+}
