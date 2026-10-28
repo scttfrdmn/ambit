@@ -173,6 +173,15 @@ while IFS= read -r line; do
 		*" -arm a-local "* | *" -arm b-4b "* | *" -arm b "*) extra+=(-server-slots "$NP") ;;
 		*" -arm a-strands "* | *" -arm b-strands "*) extra+=(-server-slots 1) ;;
 		esac
+		# A slot override is the scaled-server secondary; mark it so the
+		# report keeps it out of the registered verdicts even if the line
+		# forgot -scaled-servers.
+		case " $line " in *" -scaled-servers "*) ;; *)
+			case " $line " in
+			*" -arm a-d3 "*) grep -q '^#d3-np ' RUNS && extra+=(-scaled-servers) ;;
+			*" -arm a-local "* | *" -arm b-4b "* | *" -arm b "*) grep -q '^#llama-np ' RUNS && extra+=(-scaled-servers) ;;
+			esac ;;
+		esac
 		./ambit swarm "${args[@]:1}" ${extra[@]+"${extra[@]}"} -results results >>"$LOG" 2>&1 </dev/null &
 	else
 		./ambit run "${args[@]}" -results results >>"$LOG" 2>&1 </dev/null &
