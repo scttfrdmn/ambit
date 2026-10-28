@@ -94,6 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on-demand list price (#33).
 - G2b results at 10⁶ (`results/g2b/`): manifests, decisions, the report,
   GPU cost, and the manifests of quarantined shards.
+- G2c results at 10⁵ (`results/g2c/`), the #55-corrected confirmation
+  registered on #56: manifests, decisions, the report and GPU cost.
 - `scripts/spore`, which runs work on spore.host:
   - Stages a bundle and a runs file, then launches spot GPU instances with
     a TTL, a cost limit of at most $20, a `project=ambit` tag and a scoped
